@@ -1,0 +1,84 @@
+name: CD (staging)
+
+# Staging deployment runs only on pushes/merges to main.
+# Pull requests are intentionally excluded -- they are covered by ci.yml.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two staging deployments against the same stack at once.
+concurrency:
+  group: cd-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # required for GitHub OIDC -> AWS role assumption
+
+env:
+  AWS_REGION: ap-south-1
+  STACK_NAME: flowforge-staging
+
+jobs:
+  deploy-staging:
+    name: Deploy flowforge-staging (ap-south-1)
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: infrastructure
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Lambda runtime is python3.12; sam build needs a matching interpreter.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      # Short-lived credentials via GitHub OIDC. No AWS access keys are stored
+      # anywhere: AWS_DEPLOY_ROLE_ARN is a secret holding only a role ARN.
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: flowforge-cd-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate SAM template
+        run: sam validate --lint --region "$AWS_REGION"
+
+      - name: Build SAM application
+        run: sam build
+
+      # Deploy settings are passed explicitly because infrastructure/samconfig.toml
+      # is gitignored and therefore never present on the runner.
+      - name: Deploy to staging
+        run: |
+          sam deploy \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --resolve-s3 \
+            --s3-prefix "$STACK_NAME" \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --tags Project=FlowForge Environment=staging \
+            --parameter-overrides \
+              Environment=staging \
+              BedrockRegion=us-east-1 \
+              DocumentRetentionDays=1
+
+      - name: Show stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --query 'Stacks[0].Outputs' \
+            --output table
