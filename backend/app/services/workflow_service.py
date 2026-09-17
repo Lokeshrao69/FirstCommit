@@ -15,19 +15,18 @@ from ..ai.workflow_generator import WorkflowGenerator
 from ..core.config import Settings
 from ..models.api import AdvanceWorkflowRequest, WorkflowDetailResponse, WorkflowProgress
 from ..models.audit import AuditEvent
-from ..models.document import DocumentRecord
+from ..models.document import DocumentRecord, ExtractedField
 from ..models.enums import (
     AuditEventType,
     StateStatus,
     StateType,
-    WorkflowStatus,
     ValidationStatus,
+    WorkflowStatus,
 )
 from ..models.workflow import State, Workflow
 from ..services.demo_scenario import DEMO_PROFILE
 from ..services.eligibility import check_eligibility
 from ..storage.repository import WorkflowRepository
-from ..workflow.errors import ExecutionError, WorkflowAlreadyTerminalError
 from ..workflow.state_machine import (
     AdvanceResult,
     ExecutionContext,
@@ -82,9 +81,19 @@ class WorkflowService:
     def get_workflow(self, workflow_id: str) -> Optional[Workflow]:
         return self._repo.get_workflow(workflow_id)
 
-    def audit_event(self, workflow_id: str, event_type: AuditEventType, *, details: Optional[dict[str, Any]] = None, confidence: Optional[float] = None) -> AuditEvent:
+    def audit_event(
+        self,
+        workflow_id: str,
+        event_type: AuditEventType,
+        *,
+        details: Optional[dict[str, Any]] = None,
+        confidence: Optional[float] = None,
+    ) -> AuditEvent:
         return AuditEvent(
-            workflow_id=workflow_id, event_type=event_type, details=details or {}, confidence=confidence
+            workflow_id=workflow_id,
+            event_type=event_type,
+            details=details or {},
+            confidence=confidence,
         )
 
     def to_detail(self, workflow: Workflow) -> WorkflowDetailResponse:
@@ -99,9 +108,6 @@ class WorkflowService:
         }
 
         validation = workflow.collected_data.get("validation_result")
-        if validation:
-            is_block = validation.get("status") == "block"
-            is_warning = validation.get("status") == "needs_review"
 
         return WorkflowDetailResponse(
             workflow_id=workflow.workflow_id,
@@ -172,12 +178,10 @@ def _eligibility_handler(requirements: dict) -> Any:
 
 def _validation_handler(llm: LLMProvider, requirements: dict, settings: Settings) -> Any:
     def execute(state: State, ctx: ExecutionContext) -> StepResult:
-        extracted: dict[str, dict[str, Any]] = {}
+        extracted: dict[str, dict[str, ExtractedField]] = {}
         for classification, doc in ctx.collected_documents.items():
             if isinstance(doc, DocumentRecord) and getattr(doc, "extracted_fields", None):
-                extracted[classification] = {
-                    k: v.model_dump() for k, v in doc.extracted_fields.items()
-                }
+                extracted[classification] = dict(doc.extracted_fields)
         result = llm.run_cross_validation(requirements, extracted)
         status = result.status
 

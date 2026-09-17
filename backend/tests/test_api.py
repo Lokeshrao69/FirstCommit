@@ -30,9 +30,9 @@ DOCS = [
 @pytest.fixture(scope="module")
 def client() -> TestClient:
     override_settings({**os.environ, "DEMO_MODE": "true", "CORS_ORIGINS": "[\"http://localhost:5173\"]"})
+    get_services.cache_clear()
     app = FastAPI()
     app.include_router(router)
-    get_services.cache_clear()
     return TestClient(app)
 
 
@@ -153,7 +153,6 @@ def test_low_confidence_extraction_blocks(client):
 def test_workflow_generation_failure_is_loud(client):
     """If generation+retry both fail, the API surfaces a typed error."""
     from app.ai.mock_llm_provider import MockLLMProvider
-    from app.ai.workflow_generator import WorkflowGenerator
     from app.api.deps import get_services
 
     class BrokenProvider(MockLLMProvider):
@@ -161,11 +160,12 @@ def test_workflow_generation_failure_is_loud(client):
             raise RuntimeError("bedrock down")
 
     services = get_services()
-    original = services.generator
-    services.generator = WorkflowGenerator(BrokenProvider(), services.settings)
+    generator = services.workflow_service._generator
+    original_provider = generator._provider
+    generator._provider = BrokenProvider()
     try:
         r = client.post("/workflows", json={"goal": DEMO_GOAL})
         assert r.status_code == 409
         assert "valid workflow" in r.json()["detail"]
     finally:
-        services.generator = original
+        generator._provider = original_provider

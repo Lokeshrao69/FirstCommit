@@ -23,7 +23,7 @@ class WorkflowGenerator:
 
     def generate(self, goal: str, knowledge: dict) -> Workflow:
         last_error: Exception | None = None
-        for attempt in range(2):
+        for _ in range(2):
             try:
                 raw = self._provider.generate_workflow(goal, knowledge)
                 return self._build(raw)
@@ -35,7 +35,7 @@ class WorkflowGenerator:
                     break
         raise WorkflowGenerationError(
             f"could not generate a valid workflow for goal after retry: {last_error}"
-        )
+        ) from last_error
 
     def _build(self, raw: dict) -> Workflow:
         workflow = Workflow.model_validate(raw)
@@ -51,6 +51,7 @@ def load_knowledge(path: str) -> dict:
 def load_canonical_workflow(path: str) -> Workflow:
     with open(path, encoding="utf-8") as fh:
         raw = json.load(fh)
-    workflow = Workflow.model_validate(raw)
+    data = raw.get("workflow", raw)
+    workflow = Workflow.model_validate(data)
     validate_or_raise(workflow)
     return workflow

@@ -34,7 +34,7 @@ DOCUMENT_CATEGORIES = [
 _FILENAME_HINTS = {
     "academic_transcript": ["transcript"],
     "proof_of_income": ["income", "salary", "payslip"],
-    "government_id": ["government", "passport", "identity", "id_card"],
+    "government_id": ["government", "passport", "identity", "id card", "id_card"],
     "recommendation_letter": ["recommendation", "reference"],
     "personal_essay": ["essay", "statement"],
     "enrollment_verification": ["enrollment"],
@@ -60,16 +60,19 @@ class MockLLMProvider(LLMProvider):
 
     def classify_document(self, text: str) -> ClassificationResult:
         lowered = text[:4000].lower()
-        best: tuple[str, float, str] = ("other", 0.4, "no matching category hints")
+        best_cat = "other"
+        best_hits = 0
+        reasoning = "no matching category hints"
         for category, hints in _FILENAME_HINTS.items():
-            score = sum(1 for h in hints if h in lowered) / max(1, len(hints))
-            if score > best[1]:
-                best = (category, score, f"matched filename hints {hints}")
-        confidence = clamped(0.5 + 0.5 * best[1])
+            hits = sum(1 for h in hints if h in lowered)
+            if hits > best_hits:
+                best_cat, best_hits = category, hits
+                reasoning = f"matched filename hints {hints}"
+        confidence = clamped(0.5 + 0.5 * min(1.0, best_hits / 2))
         return ClassificationResult(
-            classification=best[0],
+            classification=best_cat,
             confidence=confidence,
-            reasoning=best[2],
+            reasoning=reasoning,
         )
 
     def extract_fields(self, text: str, classification: str) -> dict[str, ExtractedField]:
@@ -137,8 +140,16 @@ class MockLLMProvider(LLMProvider):
     def _extract_enrollment(self, text: str) -> dict[str, ExtractedField]:
         fields: dict[str, ExtractedField] = {}
         for pattern, key, label in [
-            (re.compile(r"Enrollment:\s*(full[\s-]?time|part[\s-]?time)", re.I), "enrollment_status", "enrollment status"),
-            (re.compile(r"Expected Graduation:\s*(\d{4})", re.M), "expected_graduation", "expected graduation"),
+            (
+                re.compile(r"Enrollment:\s*(full[\s-]?time|part[\s-]?time)", re.I),
+                "enrollment_status",
+                "enrollment status",
+            ),
+            (
+                re.compile(r"Expected Graduation:\s*(\d{4})", re.M),
+                "expected_graduation",
+                "expected graduation",
+            ),
         ]:
             f = self._grab(pattern, text, label, 0.94)
             if f is not None:
@@ -154,7 +165,6 @@ class MockLLMProvider(LLMProvider):
     ) -> CrossValidationResult:
         issues: list[ValidationIssue] = []
         checks = 0
-        conflict = False
 
         transcript = extracted_fields.get("academic_transcript", {})
         identity = extracted_fields.get("government_id", {})
@@ -169,7 +179,10 @@ class MockLLMProvider(LLMProvider):
                     ValidationIssue(
                         severity=ValidationSeverity.ERROR,
                         field="cumulative_gpa",
-                        message=f"Cumulative GPA {transcript['cumulative_gpa'].value} is below the required {req('cumulative_gpa')['value']}.",
+                        message=(
+                    f"Cumulative GPA {transcript['cumulative_gpa'].value} is below the required "
+                    f"{req('cumulative_gpa')['value']}."
+                ),
                         evidence=[transcript["cumulative_gpa"].source_text or ""],
                     )
                 )
@@ -189,16 +202,18 @@ class MockLLMProvider(LLMProvider):
                         suggestion="Upload a corrected transcript or acknowledge this warning to continue.",
                     )
                 )
-                conflict = True
 
         if req("enrollment_status") and "enrollment_status" in transcript:
             checks += 1
-            if str(transcript["enrollment_status"].value).lower() != str(req("enrollment_status")["value"]).lower():
+            if not _same_enrollment(transcript["enrollment_status"], req("enrollment_status")):
                 issues.append(
                     ValidationIssue(
                         severity=ValidationSeverity.ERROR,
                         field="enrollment_status",
-                        message=f"Enrollment is {transcript['enrollment_status'].value}, expected {req('enrollment_status')['value']}.",
+                        message=(
+                    f"Enrollment is {transcript['enrollment_status'].value}, "
+                    f"expected {req('enrollment_status')['value']}."
+                ),
                         evidence=[transcript["enrollment_status"].source_text or ""],
                     )
                 )
@@ -214,7 +229,10 @@ class MockLLMProvider(LLMProvider):
                     ValidationIssue(
                         severity=ValidationSeverity.ERROR,
                         field="expected_graduation",
-                        message=f"Expected graduation {actual} does not meet the {req('expected_graduation')['value']} requirement.",
+                        message=(
+                        f"Expected graduation {actual} does not meet the "
+                        f"{req('expected_graduation')['value']} requirement."
+                    ),
                         evidence=[transcript["expected_graduation"].source_text or ""],
                     )
                 )
@@ -262,3 +280,10 @@ def _meets_requirement(field: ExtractedField, rule: dict[str, Any]) -> bool:
     except ValueError:
         return False
     return actual >= float(rule["value"])
+
+
+def _same_enrollment(field: ExtractedField, rule: dict[str, Any]) -> bool:
+    """Compare enrollment labels ignoring dashes/underscores/spaces."""
+    a = "".join(ch for ch in str(field.value).lower() if ch.isalnum())
+    b = "".join(ch for ch in str(rule["value"]).lower() if ch.isalnum())
+    return a == b

@@ -86,14 +86,15 @@ def test_document_required_waits_for_documents():
     ]
     wf = make_workflow(states, initial="check", terminals=["completed"])
     ctx = ExecutionContext()
-    result = run_once(wf, {"check": done_handler(), "submit": done_handler({"submitted": True})}, ctx)
+    check = done_handler({"eligible": True})
+    result = run_once(wf, {"check": check, "submit": done_handler({"submitted": True})}, ctx)
     assert result.needs == "document_upload"
     assert wf.get_state("docs").status == StateStatus.ACTIVE
 
     ctx.collected_documents["transcript"] = {"meta": "x"}
     result2 = run_once(
         wf,
-        {"check": done_handler(), "submit": done_handler({"submitted": True})},
+        {"check": check, "submit": done_handler({"submitted": True})},
         ctx,
     )
     assert result2.needs == "approval"
@@ -125,12 +126,15 @@ def test_approval_then_execution():
     result = run_once(wf, {"go": done_handler()}, ExecutionContext())
     assert result.needs == "approval"
 
-    sub = {"submit": StepResult(status="completed", data={"submitted": True})}
-
     def sub_handler(state, ctx):
         return StepResult(status="completed", data={"submitted": True})
 
-    result2 = run_once(wf, {"go": done_handler(), "submit": sub_handler}, ExecutionContext(), AdvanceWorkflowRequest(approval=True))
+    result2 = run_once(
+        wf,
+        {"go": done_handler(), "submit": sub_handler},
+        ExecutionContext(),
+        AdvanceWorkflowRequest(approval=True),
+    )
     assert result2.completed
     assert result2.workflow.status == WorkflowStatus.COMPLETED
 
@@ -209,7 +213,12 @@ def test_recovery_after_paused_state():
     run_once(wf, {"check": done_handler()}, ctx)
     # simulate restart / recovery: same workflow, fresh context, but state is persisted
     ctx2 = ExecutionContext()
-    result = run_once(wf, {"check": done_handler(), "ask": result_handler(lambda c: {"email": "r@e.c"})}, ctx2, AdvanceWorkflowRequest())
+    result = run_once(
+        wf,
+        {"check": done_handler(), "ask": result_handler(lambda c: {"email": "r@e.c"})},
+        ctx2,
+        AdvanceWorkflowRequest(),
+    )
     # ask still requires input because inputs lacked it
     assert result.needs == "user_input"
     res = run_once(
@@ -232,7 +241,11 @@ def test_duplicate_execution_blocked():
         return StepResult(status="completed", data={"submitted": True})
 
     ctx = ExecutionContext()
-    result = run_once(wf, {"go": done_handler(), "submit": sub}, ctx, AdvanceWorkflowRequest(approval=True))
+    result = run_once(wf, {"go": done_handler(), "submit": sub}, ctx)
+    assert result.needs == "approval"
+    result = run_once(
+        wf, {"go": done_handler(), "submit": sub}, ctx, AdvanceWorkflowRequest(approval=True)
+    )
     assert result.completed
     assert wf.status == WorkflowStatus.COMPLETED
     # already-terminal workflows must refuse further execution

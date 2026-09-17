@@ -43,7 +43,6 @@ def _report(errors: list[str]) -> ValidationReport:
 def validate(workflow: Workflow) -> ValidationReport:
     errors: list[str] = []
     states = workflow.state_map()
-    names = set(states)
 
     # 1. unique ids (dict already de-duplicates; compare ordering)
     if len(states) != len(workflow.states):
@@ -131,12 +130,12 @@ def _reachable(states: dict[str, object], start: str) -> set[str]:
         node = stack.pop()
         if node in seen:
             continue
-        seen.add(node)
-        state = states.get(node)
-        if state is None:
+        if node not in states:
             continue
+        seen.add(node)
+        state = states[node]
         for tr in state.transitions:
-            if tr.target not in seen:
+            if tr.target not in seen and tr.target in states:
                 stack.append(tr.target)
     return seen
 

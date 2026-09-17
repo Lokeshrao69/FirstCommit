@@ -18,7 +18,11 @@ class ConfidenceDecision:
     requires_review: bool
 
 
-def decide(confidence: float, pass_threshold: float = CONFIDENCE_PASS, warn_threshold: float = CONFIDENCE_WARN) -> ConfidenceDecision:
+def decide(
+    confidence: float,
+    pass_threshold: float = CONFIDENCE_PASS,
+    warn_threshold: float = CONFIDENCE_WARN,
+) -> ConfidenceDecision:
     if confidence >= pass_threshold:
         return ConfidenceDecision("pass", auto_approved=True, requires_review=False)
     if confidence >= warn_threshold:

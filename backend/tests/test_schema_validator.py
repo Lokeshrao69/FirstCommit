@@ -29,7 +29,7 @@ def valid_states():
 
 
 def test_valid_workflow_passes(valid_states):
-    wf = make_workflow(valid_states, initial="check", terminals=["completed", "cancelled"])
+    wf = make_workflow(valid_states, initial="check", terminals=["completed"])
     report = validate(wf)
     assert report.valid, report.errors
 
@@ -64,8 +64,9 @@ def test_unknown_condition_rejected(valid_states):
 
 
 def test_terminal_with_transitions_rejected_by_model():
-    from app.models.workflow import State, Transition
     from pydantic import ValidationError
+
+    from app.models.workflow import State, Transition
 
     with pytest.raises(ValidationError):
         State(
@@ -94,7 +95,11 @@ def test_unreachable_state_rejected(valid_states):
 
 
 def test_no_reachable_terminal_rejected():
-    wf = make_workflow([auto_state("a", [("b", "always")]), auto_state("b", [("a", "always")])], initial="a", terminals=["completed"])
+    wf = make_workflow(
+        [auto_state("a", [("b", "always")]), auto_state("b", [("a", "always")])],
+        initial="a",
+        terminals=["completed"],
+    )
     report = validate(wf)
     assert not report.valid
 

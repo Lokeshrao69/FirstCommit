@@ -10,7 +10,7 @@ results, and the current advance input). They never invoke the LLM.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Dict
+from typing import TYPE_CHECKING, Callable, Dict
 
 from ..models.workflow import State
 

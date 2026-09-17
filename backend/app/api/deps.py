@@ -82,8 +82,8 @@ class Services:
 
 
 @lru_cache
-def get_services(settings: Settings | None = None) -> Services:
-    return Services(settings or get_settings())
+def get_services() -> Services:
+    return Services(get_settings())
 
 
 def _load_knowledge(path: Path) -> dict:

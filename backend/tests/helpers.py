@@ -87,7 +87,7 @@ def make_workflow(states: list[State], initial: str, terminals: list[str] | None
 
 
 def always_handler(*args, **kwargs):
-    from app.workflow.state_machine import StepHandler, StepResult
+    from app.workflow.state_machine import StepResult
 
     def execute(state, ctx):
         return StepResult(status="completed", data={})

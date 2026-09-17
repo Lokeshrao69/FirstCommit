@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import hashlib
 import re
-from typing import Any
 
 from .processor import DocumentObjectStore, DocumentProcessor
 
 TRANSCRIPT_HEADER = """Northbridge State University
-Office of the Registrar — Official Academic Record (DEMO)
+Office of the Registrar — Official Academic Transcript (DEMO)
 
 Name: Alex Rivera
 University: Northbridge State University
@@ -40,11 +39,11 @@ TRANSCRIPT_VALUES = {
     },
 }
 
-GOVERNMENT_ID_TEXT = """STATE OF FICTION — DEMONSTRATION ID CARD
+GOVERNMENT_ID_TEXT = """STATE OF FICTION — DEMONSTRATION GOVERNMENT ID CARD
 
 Name: Alex Rivera
 Date of Birth: 1999-04-12
-ID Number: FF-ID-8841-DEMO
+Government ID Number: FF-ID-8841-DEMO
 Usable for demo purposes only.
 """
 

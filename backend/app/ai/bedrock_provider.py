@@ -1,4 +1,4 @@
-"""Amazon Bedrock-backed LLM provider.
+﻿"""Amazon Bedrock-backed LLM provider.
 
 Controlled AI components only: workflow generation, document classification,
 field extraction, and cross-validation. Each call requests strict JSON output and
@@ -14,12 +14,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ..core.config import Settings
 from ..core.confidence import clamped
+from ..core.config import Settings
 from ..models.document import (
     ClassificationResult,
     CrossValidationResult,
     ExtractedField,
+    ValidationIssue,
     ValidationSeverity,
     ValidationStatus,
 )
@@ -118,13 +119,17 @@ class BedrockProvider(LLMProvider):
 
     def extract_fields(self, text: str, classification: str) -> dict[str, ExtractedField]:
         system = _read_prompt(_PROMPTS_DIR / "field_extractor.txt")
-        allowed = _read_prompt(_PROMPTS_DIR / "field_schema.txt").split("\n") if (_PROMPTS_DIR / "field_schema.txt").exists() else []
+        allowed = (
+            _read_prompt(_PROMPTS_DIR / "field_schema.txt").split("\n")
+            if (_PROMPTS_DIR / "field_schema.txt").exists()
+            else []
+        )
         prompt = (
             f"Document classification: {classification}\n"
             + ("Allowed fields:\n" + "\n".join(allowed) + "\n" if allowed else "")
             + wrap_untrusted_document(text)
-            + "\n\nReturn ONLY JSON: {\"fields\": {\"<field>\": {\"value\": ..., \"confidence\": 0.0-1.0, \"source_text\": \"exact text from the document\"}}}"
-            + "\nEvery value MUST have a matching source_text present verbatim in the document. Never invent values."
+            + '\n\nReturn ONLY JSON: {"fields": {"<field>": {"value": ..., "confidence": 0.0-1.0, '
+            + '"source_text": "exact text from the document"}}}'
         )
         raw = self._invoke_anthropic(system, prompt, self._settings.bedrock_fast_model_id)
         fields: dict[str, ExtractedField] = {}
@@ -184,9 +189,9 @@ def _extract_json(text: str) -> dict:
         cleaned = "\n".join(line for line in cleaned.splitlines() if not line.startswith("```"))
     try:
         return json.loads(cleaned)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
         start = cleaned.find("{")
         end = cleaned.rfind("}")
         if start != -1 and end != -1 and end > start:
             return json.loads(cleaned[start : end + 1])
-        raise ValueError("model response did not contain a JSON object")
+        raise ValueError("model response did not contain a JSON object") from exc

@@ -10,7 +10,7 @@ The executor never asks the LLM what to do next.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -121,7 +121,7 @@ def advance_workflow(
 
         step = _run_state(workflow, current, handlers, context, result)
         if step.status != "completed":
-            result.needs = step.status
+            result.needs = _needs_label(current) if _is_waiting(step.status) else step.status
             result.message = step.message
             result.active_state_id = current.id
             if step.status == "blocked":
@@ -203,10 +203,12 @@ def _run_state(
     if state.type == StateType.DOCUMENT_REQUIRED:
         return _handle_documents(state, context)
     if state.type == StateType.HUMAN_APPROVAL:
-        return _handle_approval(state, context, result)
+        return _handle_approval(workflow, state, context, result)
     handler = handlers.get(state.id)
     if handler is None:
         raise ExecutionError(f"no handler registered for state '{state.id}' ({state.type})")
+    if callable(handler):
+        return handler(state, context)
     return handler.execute(state, context)
 
 
@@ -241,7 +243,7 @@ def _handle_documents(state: State, context: ExecutionContext) -> StepResult:
 
 
 def _handle_approval(
-    state: State, context: ExecutionContext, result: AdvanceResult
+    workflow: Workflow, state: State, context: ExecutionContext, result: AdvanceResult
 ) -> StepResult:
     approved = _read_approval(context)
     if approved is None:
@@ -251,7 +253,7 @@ def _handle_approval(
             data=context.results.get(state.id, {}),
         )
     _emit(
-        context,
+        workflow,
         result,
         AuditEventType.HUMAN_APPROVAL,
         from_state=state.id,
@@ -364,3 +366,7 @@ def _needs_label(state: State) -> str:
         StateType.DOCUMENT_REQUIRED: "document_upload",
         StateType.HUMAN_APPROVAL: "approval",
     }.get(state.type, "action")
+
+
+def _is_waiting(status: str) -> bool:
+    return status in ("needs_document", "needs_input", "needs_approval")

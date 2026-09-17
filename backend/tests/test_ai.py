@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 
 import pytest
 
@@ -19,7 +19,7 @@ from app.workflow.errors import WorkflowGenerationError
 from app.workflow.schema_validator import validate
 from app.workflow.state_machine import ExecutionContext
 
-KNOWLEDGE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge", "scholarship_process.json")
+KNOWLEDGE_PATH = str(Path(__file__).resolve().parents[1] / "knowledge" / "scholarship_process.json")
 
 
 @pytest.fixture
@@ -130,7 +130,7 @@ def test_low_confidence_validation_blocks(provider, reqs):
             return low
 
     handler = _validation_handler(Low(), reqs, Settings({"DEMO_MODE": "true"}))
-    step = handler.execute(State(id="v", label="v", type="validation"), ExecutionContext())
+    step = handler(State(id="v", label="v", type="validation"), ExecutionContext())
     assert step.data["status"] == "block"
 
 
@@ -142,18 +142,28 @@ def test_medium_confidence_warns(provider, reqs):
             return mid
 
     handler = _validation_handler(Mid(), reqs, Settings({"DEMO_MODE": "true"}))
-    step = handler.execute(State(id="v", label="v", type="validation"), ExecutionContext())
+    step = handler(State(id="v", label="v", type="validation"), ExecutionContext())
     assert step.data["status"] == "needs_review"
 
 
 def test_eligibility_is_deterministic(reqs):
     ok, _ = check_eligibility(
-        {"cumulative_gpa": 3.72, "current_semester_gpa": 3.7, "enrollment_status": "full_time", "expected_graduation": 2027},
+        {
+            "cumulative_gpa": 3.72,
+            "current_semester_gpa": 3.7,
+            "enrollment_status": "full_time",
+            "expected_graduation": 2027,
+        },
         reqs,
     )
     assert ok
     bad, _ = check_eligibility(
-        {"cumulative_gpa": 2.8, "current_semester_gpa": 3.7, "enrollment_status": "full_time", "expected_graduation": 2027},
+        {
+            "cumulative_gpa": 2.8,
+            "current_semester_gpa": 3.7,
+            "enrollment_status": "full_time",
+            "expected_graduation": 2027,
+        },
         reqs,
     )
     assert not bad

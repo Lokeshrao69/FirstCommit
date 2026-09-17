@@ -44,7 +44,7 @@ def root() -> dict:
 
 
 # Warm the composition root so providers are constructed once.
-get_services(settings)
+get_services()
 
 if __name__ == "__main__":
     import uvicorn
