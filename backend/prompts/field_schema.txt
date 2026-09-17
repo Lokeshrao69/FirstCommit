@@ -1,0 +1,5 @@
+academic_transcript: student_name, university_name, cumulative_gpa, current_semester_gpa, enrollment_status, expected_graduation, major, credits_completed
+government_id: full_name, date_of_birth, id_number
+proof_of_income: annual_income, valid_until
+personal_essay: submitted
+enrollment_verification: enrollment_status, expected_graduation
