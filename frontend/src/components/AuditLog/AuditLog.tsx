@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ScrollText, X } from "lucide-react";
 import type { AuditEvent, AuditEventType } from "@/types";
 import { fmtConfidence, fmtTime } from "@/utils/format";
-import { EVENT_META } from "@/components/ChatPanel/ChatPanel";
+import { EVENT_META } from "@/components/ChatPanel/eventMeta";
 
 interface AuditLogProps {
   open: boolean;

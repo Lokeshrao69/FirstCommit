@@ -106,14 +106,39 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
        27 audit events (incl. `human_approval` ×2, `execution`, `workflow_completed`)
 - [~] Hand mock API responses to Person B (`services/mock.ts`) — frontend is starting
 
-## Chunk 10 — Frontend scaffold (NEXT)
-**Owner:** B · **Status:** 🚧 in progress — running against `docs/team/plan-b-frontend.md`
+## Chunk 10 — Frontend scaffold
+**Owner:** B · **Status:** ✅ done — running against `docs/team/plan-b-frontend.md`
+
+- `package.json` (React 19, Vite 7, Tailwind 3.4, `@xyflow/react` v12, framer-motion,
+  lucide-react; build = `tsc --noEmit && vite build`), `tsconfig.json` (`@/*` alias),
+  `vite.config.ts` (`/api` proxy → `127.0.0.1:8000`), `postcss.config.js`,
+  `tailwind.config.js` (ink/paper/accent/ok/warn/err tokens), `eslint.config.js` (flat),
+  `index.html`, `public/favicon.svg`, `src/index.css` (panels/buttons/React Flow dark theme)
+- `src/types/index.ts` — full snake_case contract mirror of `models/api.py`
+- `src/services/mock.ts` — deterministic offline demo (10-state workflow, filename-driven
+  classification, transcript GPA conflict, two approval gates, rejection paths, audit trail)
+- `src/services/api.ts` — `FlowForgeApi` with `MockApi` (default) / `HttpApi` + env switch
+- `src/utils/format.ts`, `src/utils/layout.ts`, `src/hooks/useWorkflow.ts` (phase machine)
 
 ## Chunk 11 — Workflow graph UI against mock
-**Owner:** B · **Status:** ⬜
+**Owner:** B · **Status:** ✅ done (build + lint green; interactive browser pass pending)
+
+- `components/WorkflowGraph/` — custom `StateNode` (per-type icons, status styling, pulse on
+  active) + `WorkflowGraph` (BFS layered layout, animated active edges, dots background)
+- `components/GoalInput/` — goal entry with example prompts
+- `components/ProgressBar/` — animated completion fill
+- `pages/Demo.tsx` + `App.tsx` + `main.tsx` — header, left rail, center graph, action deck
 
 ## Chunk 12 — Document UI + approval + audit viewer
-**Owner:** B (+A) · **Status:** ⬜
+**Owner:** B (+A) · **Status:** ✅ done (build + lint green; interactive browser pass pending)
+
+- `components/DocumentUpload/` — required-doc checklist, dropzone, demo transcript buttons,
+  pipeline-stage animation, continue gate
+- `components/DocumentDetails/` — extracted fields per document with confidence
+- `components/ValidationResults/` — validation banner + issue cards + evidence
+- `components/ApprovalModal/` — two-gate approval (acknowledge warning / final approve-reject)
+- `components/ChatPanel/` (+`eventMeta.ts`) — system log feed
+- `components/AuditLog/` — filterable audit trail drawer
 
 ## Chunk 13 — Evaluation + test documents
 **Owner:** C · **Status:** ⬜ — `evaluation/` + `docs/evaluation.md`
@@ -133,18 +158,18 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 1 | Inspect repo | ✅ empty, initialized |
 | 2 | Initialize structure | ✅ frontend+backend+infra+eval+docs |
 | 3 | README / ARCHITECTURE / .env.example | ✅ |
-| 4 | Frontend scaffold | 🚧 (Chunk 10) |
+| 4 | Frontend scaffold | ✅ (Chunk 10) |
 | 5 | Backend scaffold | ✅ |
 | 6 | Workflow JSON schema | ✅ |
 | 7 | API contracts | ✅ `models/api.py` + routes |
 | 8 | Pydantic models | ✅ |
 | 9 | Deterministic state machine + tests | ✅ 39 tests pass |
 | 10 | Mock workflow | ✅ `knowledge/scholarship_process.json` |
-| 11 | Mock API response | ✅ mock provider + in-memory repo (frontend mock file pending) |
-| 12 | Frontend graph against mock | 🚧 (Chunk 10/11) |
+| 11 | Mock API response | ✅ mock provider + in-memory repo + `services/mock.ts` |
+| 12 | Frontend graph against mock | ✅ (Chunks 10–12, build + lint green) |
 | 13 | Verify complete mock path | ✅ E2E scripted + live demo verified |
 
 ## Known gaps / risks
 - Live Bedrock/Textract calls unverified (no AWS creds in this workspace yet).
-- Frontend wholly unbuilt — highest remaining value.
+- Frontend built against the mock; interactive browser pass + wiring to live backend pending.
 - Evaluation numbers must come only from `evaluation/run_evaluation.py`.

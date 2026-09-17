@@ -19,58 +19,58 @@ and `backend/app/api/routes.py`):
 ---
 
 ## B1 · Scaffold (Phase 1)
-- [ ] `frontend/` Vite + React + TypeScript
-- [ ] Tailwind CSS + `tailwind.config` / theme tokens (restrained color system, strong typography)
-- [ ] `reactflow` + `framer-motion` deps
-- [ ] TS types mirroring backend contract: `Workflow`, `State`, `Transition`, `AdvanceResult`,
+- [x] `frontend/` Vite + React + TypeScript
+- [x] Tailwind CSS + `tailwind.config` / theme tokens (restrained color system, strong typography)
+- [x] `reactflow` (`@xyflow/react` v12) + `framer-motion` deps
+- [x] TS types mirroring backend contract: `Workflow`, `State`, `Transition`, `AdvanceResult`,
       `AuditEvent`, `ValidationResult`, `DocumentUploadResult` → `src/types/`
-- [ ] `services/api.ts` (fetch wrapper) + `services/mock.ts` (offline mock of the API)
+- [x] `services/api.ts` (fetch wrapper) + `services/mock.ts` (offline mock of the API)
 
 ## B2 · Core layout (spec §19/§36)
-- [ ] App shell: header bar (FLOWFORGE · workflow status), left rail (user/AI panel),
+- [x] App shell: header bar (FLOWFORGE · workflow status), left rail (user/AI panel),
       center (WORKFLOW GRAPH), bottom progress bar
-- [ ] Progress bar: completed/total, ratio, animated fill (spec §19 footer)
-- [ ] "GoalInput" view (initial state): textarea + submit (out-of-box example chips)
+- [x] Progress bar: completed/total, ratio, animated fill (spec §19 footer)
+- [x] "GoalInput" view (initial state): textarea + submit (out-of-box example chips)
 
 ## B3 · Workflow graph (the visual centerpiece, spec §20)
-- [ ] React Flow instance wired to `states[]`
-- [ ] Custom nodes: icon, title, status, short description
-- [ ] Node status styling: pending · active · completed · warning · blocked
-- [ ] Edge animation; node creation animation (framer-motion) on goal submit
-- [ ] Layout: deterministic vertical auto-layout so the graph is readable
+- [x] React Flow instance wired to `states[]`
+- [x] Custom nodes: icon, title, status, short description
+- [x] Node status styling: pending · active · completed · warning · blocked
+- [x] Edge animation; node creation animation (framer-motion) on goal submit
+- [x] Layout: deterministic vertical auto-layout so the graph is readable
       (nodes appear in execution order under each path)
-- [ ] Highlight active node (pulse) + animated edge from active node
+- [x] Highlight active node (pulse) + animated edge from active node
 
 ## B4 · User/AI interaction panel
-- [ ] Non-chat-bubble presentation: "GOAL → WORKFLOW → CURRENT ACTION → RESULT →
+- [x] Non-chat-bubble presentation: "GOAL → WORKFLOW → CURRENT ACTION → RESULT →
       NEXT STATE" (spec §36). Left panel shows current action and next step.
-- [ ] ChatPanel as a *companion* (secondary) showing system messages + audit highlights
+- [x] ChatPanel as a *companion* (secondary) showing system messages + audit highlights
 
 ## B5 · Document upload (`DocumentUpload`)
-- [ ] Upload dropzone bound to active `document_required` state; shows required doc categories
-- [ ] Processing animation (pipeline stages: store → extract → classify → validate)
-- [ ] Demo buttons: "Load demo transcript (conflict)" and "Load corrected transcript"
+- [x] Upload dropzone bound to active `document_required` state; shows required doc categories
+- [x] Processing animation (pipeline stages: store → extract → classify → validate)
+- [x] Demo buttons: "Load demo transcript (conflict)" and "Load corrected transcript"
       → generate Blobs with matching filenames so the mock backend behaves deterministically
-- [ ] "DocumentDetails": extracted fields table with per-field confidence
-- [ ] "ValidationResults": conflict callout — the **wow moment** (spec §17/§22 step 5):
+- [x] "DocumentDetails": extracted fields table with per-field confidence
+- [x] "ValidationResults": conflict callout — the **wow moment** (spec §17/§22 step 5):
       flagged field, evidence source text, confidence, pass/warn/block banner
 
 ## B6 · Human approval (`ApprovalModal`, spec §22 step 8)
-- [ ] Modal when `needs === 'approval'`: summary (documents ✓, eligibility ✓, validation ✓)
-- [ ] `APPROVE` / `REJECT` → `acknowledge` (warning resolution) vs `approval` (final) mapped
+- [x] Modal when `needs === 'approval'`: summary (documents ✓, eligibility ✓, validation ✓)
+- [x] `APPROVE` / `REJECT` → `acknowledge` (warning resolution) vs `approval` (final) mapped
       to the right advance payload
-- [ ] Warning-resolution variant: "Acknowledge and continue" / "Upload corrected document"
+- [x] Warning-resolution variant: "Acknowledge and continue" / "Upload corrected document"
 
 ## B7 · Audit viewer (`AuditLog`)
-- [ ] Timestamped event feed; event-type icons; confidence display
-- [ ] Filterable by event type; auto-scrolls to latest
+- [x] Timestamped event feed; event-type icons; confidence display
+- [x] Filterable by event type; auto-scrolls to latest
 
 ## B8 · Polish (spec §35)
-- [ ] Loading skeletons, empty states, error banner (backend failure fallback copy)
-- [ ] Submission simulation screen: "Submitting… → Application submitted → Confirmation ID
+- [x] Loading skeletons, empty states, error banner (backend failure fallback copy)
+- [x] Submission simulation screen: "Submitting… → Application submitted → Confirmation ID
       FF-2026-xxx"
 - [ ] Responsive: graph reflows on small screens
-- [ ] Final: `npm run build` clean + `npm run lint` clean
+- [x] Final: `npm run build` clean + `npm run lint` clean
 
 ---
 
