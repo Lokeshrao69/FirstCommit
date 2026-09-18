@@ -214,7 +214,9 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 - Fixed adapter region resolution: `S3ObjectStore` and `TextractProcessor` accept `Settings` or `str`
 - Fixed `evaluation/run_evaluation.py`: passes `settings.aws_region` and exits gracefully with
   clear instructions if AWS credentials are not found
-- Confirmed: `pytest -q` → **53 passed**, `ruff check` → clean, no regressions
+- Fixed DynamoDB numeric serialization (`N` AttributeValue type for exact float/int preservation) and
+  added resilient deserialization defaults in `DynamoRepository`
+- Confirmed: `pytest -q` → **58 passed** (including new `test_dynamo.py`), `ruff check` → clean, no regressions
 
 ## Chunk 15 — Live AWS + Bedrock verification
 **Owner:** A/C · **Status:** ⏳ done pending verification — blocked on credentials
@@ -234,7 +236,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   - Full E2E pipeline: goal → generation → validation → state machine → document upload →
     classification → extraction → cross-validation → conflict detection → approval gates →
     simulated submission → audit trail
-  - 53 backend tests passing, ruff clean, evaluation `--strict` green (all 6 metrics PASS)
+  - 58 backend tests passing, ruff clean, evaluation `--strict` green (all 6 metrics PASS)
   - SAM template structure reviewed for correctness against `dynamo.py` table schemas,
     `aws_processor.py` S3/Textract usage, and `bedrock_provider.py` model invocation
 - **What remains blocked on credentials:**
@@ -258,7 +260,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 6 | Workflow JSON schema | ✅ |
 | 7 | API contracts | ✅ `models/api.py` + routes |
 | 8 | Pydantic models | ✅ |
-| 9 | Deterministic state machine + tests | ✅ 53 tests pass (Chunk 13b) |
+| 9 | Deterministic state machine + tests | ✅ 58 tests pass (Chunks 13b & 14) |
 | 10 | Mock workflow | ✅ `knowledge/scholarship_process.json` |
 | 11 | Mock API response | ✅ mock provider + in-memory repo + `services/mock.ts` |
 | 12 | Frontend graph against mock | ✅ (Chunks 10–12, build + lint green) |
