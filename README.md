@@ -58,9 +58,22 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`, type a goal such as:
+Open `http://localhost:5173`. The guided flow walks you through each step:
 
-> I want to apply for the Merit Excellence Scholarship.
+1. Describe your goal (e.g. **Apply for the Merit Excellence Scholarship**)
+2. Review the generated plan, or view it as a diagram
+3. Upload your documents (pick or drag & drop) — each is checked as you add it
+4. Review the application and resolve any warnings
+5. Submit — nothing is sent until you click **Submit application**
+
+Use the **Activity** panel to follow progress. To run against the real backend
+instead of the offline mock:
+
+```bash
+# Windows PowerShell / cmd
+set VITE_USE_MOCK=false
+npm run dev
+```
 
 ## Demo mode
 
