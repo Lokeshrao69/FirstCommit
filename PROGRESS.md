@@ -182,13 +182,67 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   via `backend/scripts/generate_api_reference.py`
 
 ## Chunk 14 — Infrastructure (SAM/Lambda/IAM) + CI/CD
-**Owner:** C · **Status:** 🚧 in progress — CI ✅, SAM/Lambda/IAM ⬜
+**Owner:** C · **Status:** ✅ done
 
 - `.github/workflows/ci.yml` — backend (ruff + pytest), frontend (lint + build),
-  evaluation (generate docs + `--strict`)
+  evaluation (generate docs + `--strict`), **infrastructure** (`sam validate --lint`)
+- `.github/workflows/cd.yml` — staging deployment workflow updated with `MockLlm=true` parameter
+- `infrastructure/template.yaml` — complete AWS SAM template:
+  - **Lambda:** Mangum-wrapped FastAPI, Python 3.12, 1024 MB, 30 s timeout, X-Ray tracing
+  - **API Gateway:** `AWS::Serverless::HttpApi`, stage-parameterized, CORS configured
+  - **S3:** AES256 server-side encryption, all public access blocked, bucket policy
+    denying unencrypted uploads, lifecycle rule auto-deleting `uploads/` objects
+  - **DynamoDB:** three tables (`Workflows` PK=workflowId, `Documents` PK=workflowId
+    SK=documentId, `AuditLog` PK=workflowId SK=timestamp), all PAY_PER_REQUEST, PITR
+    enabled; physical IDs managed by CloudFormation for safe updates
+  - **IAM:** least-privilege policies scoped per resource:
+    - `s3:GetObject/PutObject/DeleteObject` on `uploads/*` only
+    - `dynamodb:GetItem/PutItem/UpdateItem/DeleteItem/Query` per table
+    - `textract:DetectDocumentText` (resource `*`, required by Textract)
+    - `bedrock:InvokeModel` scoped to both foundation models (`foundation-model/*`) and
+      cross-region inference profiles (`inference-profile/*`), supporting Anthropic Claude
+      and Amazon Nova
+    - `logs:CreateLogStream/PutLogEvents` for CloudWatch
+  - **CloudWatch:** log group (14-day retention), 4 metric filters
+    (`WorkflowCompleted`, `WorkflowExecutionEvents`, `ApplicationErrors`,
+    `BedrockThrottles`), 3 alarms (lambda errors ≥5/5min, Bedrock throttles ≥10/5min,
+    average duration ≥25s/5min), optional SNS alarm topic
+  - **Outputs:** API URL, bucket name, table names, Lambda function name + ARN
+- `infrastructure/samconfig.example.toml` — deploy config with `LogLevel` and `MockLlm` parameters
+- Environment variables passed to Lambda: `DEMO_MODE=false`, `MOCK_LLM: !Ref MockLlm`,
+  DynamoDB table refs, S3 bucket ref, Bedrock model ids, confidence thresholds, MIME/size limits
+- Fixed adapter region resolution: `S3ObjectStore` and `TextractProcessor` accept `Settings` or `str`
+- Fixed `evaluation/run_evaluation.py`: passes `settings.aws_region` and exits gracefully with
+  clear instructions if AWS credentials are not found
+- Confirmed: `pytest -q` → **53 passed**, `ruff check` → clean, no regressions
 
-## Chunk 15 — Live AWS + Bedrock verification & demo polish
-**Owner:** A/C · **Status:** ⬜ — only after demo is fully safe in DEMO_MODE
+## Chunk 15 — Live AWS + Bedrock verification
+**Owner:** A/C · **Status:** ⏳ done pending verification — blocked on credentials
+
+- **No AWS credentials available** in this workspace (AWS CLI not installed, no configured
+  profiles or environment variables). Live Bedrock/Textract/S3/DynamoDB verification
+  cannot be performed.
+- **What is ready for deployment:**
+  - SAM template is complete, well-structured, and deployable via `sam build && sam deploy`
+  - All backend adapters (`BedrockProvider`, `S3ObjectStore`, `TextractProcessor`,
+    `DynamoRepository`) are fully implemented, not stubbed
+  - `deps.py` composition root correctly switches between mock and AWS stacks based on
+    `DEMO_MODE` and `MOCK_LLM` env vars, with graceful fallback on AWS initialization failure
+  - `lambda_handler.py` wraps the FastAPI app via Mangum with API Gateway base path support
+  - `evaluation/run_evaluation.py --provider bedrock` is wired, hardened, and ready
+- **What has been verified (DEMO_MODE=true):**
+  - Full E2E pipeline: goal → generation → validation → state machine → document upload →
+    classification → extraction → cross-validation → conflict detection → approval gates →
+    simulated submission → audit trail
+  - 53 backend tests passing, ruff clean, evaluation `--strict` green (all 6 metrics PASS)
+  - SAM template structure reviewed for correctness against `dynamo.py` table schemas,
+    `aws_processor.py` S3/Textract usage, and `bedrock_provider.py` model invocation
+- **What remains blocked on credentials:**
+  - `DEMO_MODE=false` live path: Bedrock workflow generation, S3 document storage,
+    Textract text extraction, DynamoDB persistence
+  - `evaluation/run_evaluation.py --provider bedrock` comparison against mock baseline
+  - `sam deploy` to validate CloudFormation resource creation
+  - End-to-end latency and accuracy measurement against a real foundation model
 
 ---
 
@@ -210,11 +264,24 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 12 | Frontend graph against mock | ✅ (Chunks 10–12, build + lint green) |
 | 13 | Verify complete mock path | ✅ E2E scripted + live demo verified |
 | 14 | Evaluation + test documents | ✅ measured (mock path, all targets pass) |
-| 15 | CI/CD | ✅ `.github/workflows/ci.yml` |
-| 16 | Infrastructure (SAM/Lambda/IAM) | ⬜ Chunk 14 |
+| 15 | CI/CD | ✅ `.github/workflows/ci.yml` (backend + frontend + eval + infra) |
+| 16 | Infrastructure (SAM/Lambda/IAM) | ✅ Chunk 14 — complete SAM template |
 
 ## Known gaps / risks
-- Live Bedrock/Textract calls unverified (no AWS creds in this workspace yet).
+- **Live AWS verification blocked on credentials.** No AWS CLI or credentials are
+  available in the current workspace. The `DEMO_MODE=false` path (Bedrock, Textract,
+  S3, DynamoDB) is fully implemented but has not been exercised end-to-end. To verify:
+  configure AWS credentials with `bedrock:InvokeModel`, `textract:DetectDocumentText`,
+  S3 and DynamoDB access, then run `DEMO_MODE=false uvicorn main:app` and
+  `evaluation/run_evaluation.py --provider bedrock`.
+- **Bedrock model accuracy is unmeasured.** Evaluation numbers in `docs/evaluation.md`
+  describe the deterministic DEMO_MODE path (100% across all metrics). Real foundation
+  model accuracy and latency will differ; run `--provider bedrock` to establish a
+  baseline once credentials are available.
+- **SAM template not yet deployed.** The template is structurally complete and matches
+  the documented architecture. It should pass `sam validate --lint` and deploy cleanly
+  via `sam build && sam deploy`, but this has not been executed. First deployment should
+  use `--guided` mode with the `samconfig.example.toml` as a starting point.
 - Frontend built against the mock; interactive browser pass + wiring to live backend pending.
-- Infrastructure (SAM/Lambda/IAM/CloudWatch) not yet written — Chunk 14 remainder.
-- Evaluation numbers describe the deterministic DEMO_MODE path, not a foundation model.
+- DynamoDB Point-in-Time Recovery is enabled in staging/production templates; disable for
+  cost savings in development if needed.
