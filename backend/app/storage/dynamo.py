@@ -73,6 +73,8 @@ class DynamoRepository(WorkflowRepository):
         data = _loads(item)
         for key in ("workflowId", "documentId"):
             data.pop(key, None)
+        data.setdefault("workflow_id", workflow_id)
+        data.setdefault("document_id", document_id)
         return DocumentRecord.model_validate(data)
 
     def list_documents(self, workflow_id: str) -> list[DocumentRecord]:
@@ -84,8 +86,12 @@ class DynamoRepository(WorkflowRepository):
         docs: list[DocumentRecord] = []
         for item in resp.get("Items", []):
             data = _loads(item)
+            doc_id = data.get("document_id") or data.get("documentId")
             for key in ("workflowId", "documentId"):
                 data.pop(key, None)
+            data.setdefault("workflow_id", workflow_id)
+            if doc_id:
+                data.setdefault("document_id", doc_id)
             docs.append(DocumentRecord.model_validate(data))
         return docs
 
@@ -119,10 +125,10 @@ class DynamoRepository(WorkflowRepository):
                 if data.get(key) == "None":
                     data[key] = None
 
-            data["timestamp"] = item.get(
-                "timestamp",
-                {},
-            ).get("S", "")
+            raw_ts = item.get("timestamp", {}).get("S", "")
+            if raw_ts:
+                data["timestamp"] = raw_ts
+            data.setdefault("workflow_id", workflow_id)
 
             events.append(
                 AuditEvent.model_validate(data)
@@ -150,10 +156,7 @@ def _convert(value: Any) -> dict[str, Any]:
         return {"NULL": True}
     if isinstance(value, bool):
         return {"BOOL": value}
-    if isinstance(value, int) or isinstance(value, float):
-        # DynamoDB has no float type; store as string preserving precision
-        if isinstance(value, float):
-            return {"S": repr(value)}
+    if isinstance(value, (int, float)):
         return {"N": str(value)}
     if isinstance(value, str):
         return {"S": value}
