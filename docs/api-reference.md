@@ -93,7 +93,7 @@ From intent to execution. The LLM plans, the state machine executes, the human s
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `file` | string | yes |  |
+| `file` | file (binary) | yes |  |
 
 **Responses**
 
@@ -180,7 +180,7 @@ From intent to execution. The LLM plans, the state machine executes, the human s
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `file` | string | yes |  |
+| `file` | file (binary) | yes |  |
 
 ### `CreateWorkflowRequest`
 
@@ -222,8 +222,6 @@ From intent to execution. The LLM plans, the state machine executes, the human s
 | `loc` | array<string \| integer> | yes |  |
 | `msg` | string | yes |  |
 | `type` | string | yes |  |
-| `input` | any | no |  |
-| `ctx` | object | no |  |
 
 ### `WorkflowDetailResponse`
 

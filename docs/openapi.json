@@ -230,7 +230,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Health Health Get"
                 }
@@ -250,7 +249,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Root  Get"
                 }
@@ -266,7 +264,6 @@
       "AdvanceWorkflowRequest": {
         "properties": {
           "user_input": {
-            "additionalProperties": true,
             "type": "object",
             "title": "User Input",
             "description": "Values for the current user_input state, keyed by required_data field."
@@ -379,7 +376,6 @@
           },
           "states": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -397,7 +393,6 @@
           "validation": {
             "anyOf": [
               {
-                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -427,7 +422,6 @@
           },
           "events": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -454,7 +448,6 @@
           },
           "events": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -471,7 +464,7 @@
         "properties": {
           "file": {
             "type": "string",
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File"
           }
         },
@@ -509,7 +502,6 @@
             "$ref": "#/components/schemas/WorkflowStatus"
           },
           "workflow": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Workflow",
             "description": "The validated workflow definition (see docs/workflow-engine.md)."
@@ -558,7 +550,6 @@
             "description": "Classification confidence in [0, 1]."
           },
           "extracted_fields": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Extracted Fields",
             "description": "Extracted fields, each with value/confidence/source_text."
@@ -577,7 +568,6 @@
           },
           "issues": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -632,13 +622,6 @@
           "type": {
             "type": "string",
             "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
-            "type": "object",
-            "title": "Context"
           }
         },
         "type": "object",
@@ -703,7 +686,6 @@
           },
           "states": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -721,7 +703,6 @@
           "validation": {
             "anyOf": [
               {
-                "additionalProperties": true,
                 "type": "object"
               },
               {

@@ -75,6 +75,7 @@ jobs:
               BedrockRegion=us-east-1 \
               BedrockModelId=global.amazon.nova-2-lite-v1:0 \
               BedrockFastModelId=global.amazon.nova-2-lite-v1:0 \
+              MockLlm=true \
               DocumentRetentionDays=1
 
       - name: Show stack outputs

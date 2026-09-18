@@ -292,7 +292,7 @@ def _build_components(provider_name: str) -> tuple[Any, Any, Settings]:
         from app.documents.aws_processor import TextractProcessor
 
         settings = Settings({"DEMO_MODE": "false"})
-        return BedrockProvider(settings), TextractProcessor(settings), settings
+        return BedrockProvider(settings), TextractProcessor(settings.aws_region), settings
     settings = Settings({"DEMO_MODE": "true"})
     return MockLLMProvider(), MockDocumentProcessor(), settings
 
@@ -322,9 +322,21 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=None, help="explicit results file path")
     args = parser.parse_args()
 
-    provider, processor, settings = _build_components(args.provider)
-    evaluator = Evaluator(provider, processor, settings)
-    metrics = evaluator.run()
+    try:
+        provider, processor, settings = _build_components(args.provider)
+        evaluator = Evaluator(provider, processor, settings)
+        metrics = evaluator.run()
+    except Exception as exc:
+        exc_type = type(exc).__name__
+        if "Credentials" in exc_type or "EndpointConnection" in exc_type:
+            print(
+                f"\n[ERROR] Unable to run evaluation with provider '{args.provider}': {exc}\n"
+                "Please configure AWS credentials (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, "
+                "or ~/.aws/credentials) and ensure access to Bedrock/Textract.",
+                file=sys.stderr,
+            )
+            return 2
+        raise
     _print_report(metrics, args.provider)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)

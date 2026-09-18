@@ -16,13 +16,14 @@ from .processor import DocumentObjectStore, DocumentProcessor
 
 
 class S3ObjectStore(DocumentObjectStore):
-    def __init__(self, bucket: str, region: str = "us-east-1", client: Any = None) -> None:
+    def __init__(self, bucket: str, region: str | Any = "us-east-1", client: Any = None) -> None:
+        resolved_region = getattr(region, "aws_region", region) if not isinstance(region, str) else region
         if client is not None:
             self._s3 = client
         else:
             import boto3
 
-            self._s3 = boto3.client("s3", region_name=region)
+            self._s3 = boto3.client("s3", region_name=resolved_region)
         self._bucket = bucket
 
     def put(self, key: str, content: bytes, mime_type: str) -> str:
@@ -48,13 +49,14 @@ def generate_object_key(workflow_id: str, filename: str) -> str:
 
 
 class TextractProcessor(DocumentProcessor):
-    def __init__(self, region: str = "us-east-1", client: Any = None) -> None:
+    def __init__(self, region: str | Any = "us-east-1", client: Any = None) -> None:
+        resolved_region = getattr(region, "aws_region", region) if not isinstance(region, str) else region
         if client is not None:
             self._textract = client
         else:
             import boto3
 
-            self._textract = boto3.client("textract", region_name=region)
+            self._textract = boto3.client("textract", region_name=resolved_region)
 
     def extract_text(self, content: bytes, filename: str, mime_type: str) -> str:
         resp = self._textract.detect_document_text(Document={"Bytes": content})

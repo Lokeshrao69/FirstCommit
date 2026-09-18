@@ -45,6 +45,17 @@ Parameters:
       - WARNING
       - ERROR
 
+  MockLlm:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >
+      When true, uses MockLLMProvider for AI operations while continuing to use
+      real AWS services (S3, Textract, DynamoDB, Lambda, API Gateway, CloudWatch).
+      Set to false to enable live Bedrock model calls.
+
   AlarmEmail:
     Type: String
     Default: ""
@@ -144,7 +155,6 @@ Resources:
   WorkflowsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "flowforge-${Environment}-workflows"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -167,7 +177,6 @@ Resources:
   DocumentsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "flowforge-${Environment}-documents"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -194,7 +203,6 @@ Resources:
   AuditTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "flowforge-${Environment}-audit"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -233,6 +241,7 @@ Resources:
           APP_NAME: FlowForge
           ENVIRONMENT: !Ref Environment
           DEMO_MODE: "false"
+          MOCK_LLM: !Ref MockLlm
           LOG_LEVEL: !Ref LogLevel
           API_GATEWAY_BASE_PATH: !Sub "/${Environment}"
 
@@ -324,8 +333,13 @@ Resources:
               Action:
                 - bedrock:InvokeModel
               Resource:
+                - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}:${AWS::AccountId}:inference-profile/${BedrockModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}:${AWS::AccountId}:inference-profile/${BedrockFastModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}:${AWS::AccountId}:inference-profile/*"
                 - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}::foundation-model/${BedrockModelId}"
                 - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}::foundation-model/${BedrockFastModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/anthropic.*"
 
         # ----------------------------------------------------
         # CLOUDWATCH LOGS (Lambda auto-creates; explicit for SAM)

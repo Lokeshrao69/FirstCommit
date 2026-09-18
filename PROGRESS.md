@@ -186,6 +186,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 
 - `.github/workflows/ci.yml` — backend (ruff + pytest), frontend (lint + build),
   evaluation (generate docs + `--strict`), **infrastructure** (`sam validate --lint`)
+- `.github/workflows/cd.yml` — staging deployment workflow updated with `MockLlm=true` parameter
 - `infrastructure/template.yaml` — complete AWS SAM template:
   - **Lambda:** Mangum-wrapped FastAPI, Python 3.12, 1024 MB, 30 s timeout, X-Ray tracing
   - **API Gateway:** `AWS::Serverless::HttpApi`, stage-parameterized, CORS configured
@@ -193,22 +194,26 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
     denying unencrypted uploads, lifecycle rule auto-deleting `uploads/` objects
   - **DynamoDB:** three tables (`Workflows` PK=workflowId, `Documents` PK=workflowId
     SK=documentId, `AuditLog` PK=workflowId SK=timestamp), all PAY_PER_REQUEST, PITR
-    enabled, environment-namespaced table names
+    enabled; physical IDs managed by CloudFormation for safe updates
   - **IAM:** least-privilege policies scoped per resource:
     - `s3:GetObject/PutObject/DeleteObject` on `uploads/*` only
     - `dynamodb:GetItem/PutItem/UpdateItem/DeleteItem/Query` per table
     - `textract:DetectDocumentText` (resource `*`, required by Textract)
-    - `bedrock:InvokeModel` scoped to the two configured model ARNs
+    - `bedrock:InvokeModel` scoped to both foundation models (`foundation-model/*`) and
+      cross-region inference profiles (`inference-profile/*`), supporting Anthropic Claude
+      and Amazon Nova
     - `logs:CreateLogStream/PutLogEvents` for CloudWatch
   - **CloudWatch:** log group (14-day retention), 4 metric filters
     (`WorkflowCompleted`, `WorkflowExecutionEvents`, `ApplicationErrors`,
     `BedrockThrottles`), 3 alarms (lambda errors ≥5/5min, Bedrock throttles ≥10/5min,
     average duration ≥25s/5min), optional SNS alarm topic
   - **Outputs:** API URL, bucket name, table names, Lambda function name + ARN
-- `infrastructure/samconfig.example.toml` — deploy config with `LogLevel` parameter
-- Environment variables passed to Lambda: `DEMO_MODE=false`, all DynamoDB table refs,
-  S3 bucket ref, Bedrock model ids, confidence thresholds, MIME/size limits
-- Removed `MOCK_LLM=true` that was in the previous skeleton (defeats live deployment)
+- `infrastructure/samconfig.example.toml` — deploy config with `LogLevel` and `MockLlm` parameters
+- Environment variables passed to Lambda: `DEMO_MODE=false`, `MOCK_LLM: !Ref MockLlm`,
+  DynamoDB table refs, S3 bucket ref, Bedrock model ids, confidence thresholds, MIME/size limits
+- Fixed adapter region resolution: `S3ObjectStore` and `TextractProcessor` accept `Settings` or `str`
+- Fixed `evaluation/run_evaluation.py`: passes `settings.aws_region` and exits gracefully with
+  clear instructions if AWS credentials are not found
 - Confirmed: `pytest -q` → **53 passed**, `ruff check` → clean, no regressions
 
 ## Chunk 15 — Live AWS + Bedrock verification
@@ -222,9 +227,9 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   - All backend adapters (`BedrockProvider`, `S3ObjectStore`, `TextractProcessor`,
     `DynamoRepository`) are fully implemented, not stubbed
   - `deps.py` composition root correctly switches between mock and AWS stacks based on
-    `DEMO_MODE` env var, with graceful fallback on AWS initialization failure
+    `DEMO_MODE` and `MOCK_LLM` env vars, with graceful fallback on AWS initialization failure
   - `lambda_handler.py` wraps the FastAPI app via Mangum with API Gateway base path support
-  - `evaluation/run_evaluation.py --provider bedrock` is wired and ready
+  - `evaluation/run_evaluation.py --provider bedrock` is wired, hardened, and ready
 - **What has been verified (DEMO_MODE=true):**
   - Full E2E pipeline: goal → generation → validation → state machine → document upload →
     classification → extraction → cross-validation → conflict detection → approval gates →
