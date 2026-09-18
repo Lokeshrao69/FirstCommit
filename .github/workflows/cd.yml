@@ -73,8 +73,8 @@ jobs:
             --parameter-overrides \
               Environment=staging \
               BedrockRegion=us-east-1 \
-              BedrockModelId=amazon.nova-2-lite-v1:0 \
-              BedrockFastModelId=amazon.nova-2-lite-v1:0 \
+              BedrockModelId=global.amazon.nova-2-lite-v1:0 \
+              BedrockFastModelId=global.amazon.nova-2-lite-v1:0 \
               DocumentRetentionDays=1
 
       - name: Show stack outputs
