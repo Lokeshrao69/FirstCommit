@@ -112,6 +112,8 @@ async def upload_document(
     limit = settings.max_document_size_mb * 1024 * 1024
     content = await _read_within_limit(file, limit)
     mime = file.content_type or "application/octet-stream"
+    if not content:
+        raise HTTPException(status_code=400, detail="empty file")
     if mime not in settings.allowed_mime_types and not settings.demo_mode:
         raise HTTPException(status_code=415, detail="unsupported file type")
     content_error = validate_upload_content(

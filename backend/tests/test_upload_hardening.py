@@ -95,10 +95,6 @@ def test_strict_validation_allows_matching_unrecognized_types():
     assert _strict("application/pdf", TEXT) is None
 
 
-def test_strict_validation_rejects_empty_files():
-    assert _strict("application/pdf", b"") is not None
-
-
 # ------------------------------------------------------ demo (lenient) mode
 
 
@@ -117,6 +113,33 @@ def test_demo_route_accepts_plain_text_named_pdf(monkeypatch):
         files={"file": ("transcript.pdf", TEXT, "application/pdf")},
     )
     assert r.status_code == 200, r.text
+
+
+# ------------------------------------------------------ empty-file rejection
+
+
+def test_empty_upload_rejected_with_400_in_demo_mode(monkeypatch):
+    client = _offline_client(monkeypatch, demo=True)
+    wid = client.post("/workflows", json={"goal": DEMO_GOAL}).json()["workflow_id"]
+    client.post(f"/workflows/{wid}/advance", json={})
+    r = client.post(
+        f"/workflows/{wid}/documents",
+        files={"file": ("transcript.pdf", b"", "application/pdf")},
+    )
+    assert r.status_code == 400
+    assert "empty" in r.json()["detail"].lower()
+
+
+def test_empty_upload_rejected_with_400_outside_demo_mode(monkeypatch):
+    client = _offline_client(monkeypatch, demo=False)
+    wid = client.post("/workflows", json={"goal": DEMO_GOAL}).json()["workflow_id"]
+    client.post(f"/workflows/{wid}/advance", json={})
+    r = client.post(
+        f"/workflows/{wid}/documents",
+        files={"file": ("transcript.pdf", b"", "application/pdf")},
+    )
+    assert r.status_code == 400
+    assert "empty" in r.json()["detail"].lower()
 
 
 # ------------------------------------------------------ strict route wiring

@@ -39,18 +39,18 @@ def validate_upload_content(
     allowed_mime_types: list[str],
     strict: bool,
 ) -> str | None:
-    """Return a user-facing error message for a bad upload, or None if it's fine.
+    """Return a user-facing error message for a content/type mismatch, or None.
 
-    strict=False (DEMO_MODE=true) always accepts, keeping the demo shortcut
-    buttons working. strict=True rejects empty files and uploaded bytes whose
-    magic signature contradicts a declared allowed type; unrecognized nonempty
-    content is accepted to avoid false negatives.
+    Only the signature/type check is gated on ``strict``: strict=False
+    (DEMO_MODE=true) accepts any nonzero payload so the demo shortcut buttons
+    (which upload plain-text bytes pretending to be PDFs) keep working. Empty
+    files are rejected by the route with ``400`` in every mode; this helper
+    never reports an empty payload as a mismatch.
     """
+    if not strict:
+        return None
     declared = mime.split(";")[0].strip().lower()
-    if strict:
-        if not content:
-            return "empty file"
-        detected = sniff_mime(content)
-        if detected is not None and detected != declared and declared in set(allowed_mime_types):
-            return "file content does not match its declared content type"
+    detected = sniff_mime(content)
+    if detected is not None and detected != declared and declared in set(allowed_mime_types):
+        return "file content does not match its declared content type"
     return None
