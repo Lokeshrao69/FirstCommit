@@ -1,5 +1,5 @@
-import { Demo } from "@/pages/Demo";
+import { WorkflowPage } from "@/pages/WorkflowPage";
 
 export function App() {
-  return <Demo />;
+  return <WorkflowPage />;
 }

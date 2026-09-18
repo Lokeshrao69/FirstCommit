@@ -1,14 +1,15 @@
 import { memo } from "react";
-import { motion } from "framer-motion";
 import type { Node, NodeProps } from "@xyflow/react";
 import { FileText, Flag, MessageSquareText, Rocket, ShieldCheck, UserCheck, Zap } from "lucide-react";
 import type { StateStatus, StateType } from "@/types";
+import { STATE_TYPE_LABELS } from "@/types";
 
 export type StateNodeData = {
   label: string;
   description: string;
   type: StateType;
   status: StateStatus;
+  active: boolean;
 };
 
 export type StateNodeType = Node<StateNodeData, "stateNode">;
@@ -23,68 +24,41 @@ const ICONS: Record<StateType, typeof Zap> = {
   terminal: Flag,
 };
 
-const STATUS_STYLES: Record<StateStatus, { ring: string; badge: string; text: string }> = {
-  pending: {
-    ring: "border-ink-700",
-    badge: "bg-ink-700 text-paper-100/70",
-    text: "text-paper-100/50",
-  },
-  active: {
-    ring: "border-accent shadow-glow",
-    badge: "bg-accent text-white",
-    text: "text-paper-50",
-  },
-  completed: {
-    ring: "border-ok/50",
-    badge: "bg-ok/15 text-ok",
-    text: "text-paper-100/60",
-  },
-  warning: {
-    ring: "border-warn/60",
-    badge: "bg-warn/15 text-warn",
-    text: "text-paper-100/70",
-  },
-  blocked: {
-    ring: "border-err/60",
-    badge: "bg-err/15 text-err",
-    text: "text-paper-100/70",
-  },
-  failed: {
-    ring: "border-err/60",
-    badge: "bg-err/15 text-err",
-    text: "text-paper-100/70",
-  },
+const STATUS_STYLES: Record<StateStatus, { ring: string; icon: string }> = {
+  pending: { ring: "border-border bg-white", icon: "bg-surface text-muted" },
+  active: { ring: "border-primary bg-primary/5", icon: "bg-primary text-white" },
+  completed: { ring: "border-success/60 bg-success/5", icon: "bg-success text-white" },
+  warning: { ring: "border-warning bg-warning-bg", icon: "bg-warning text-white" },
+  blocked: { ring: "border-error bg-error-bg", icon: "bg-error text-white" },
+  failed: { ring: "border-error bg-error-bg", icon: "bg-error text-white" },
 };
 
 function StateNodeComponent({ data }: NodeProps<StateNodeType>) {
-  const { label, description, type, status } = data;
+  const { label, description, type, status, active } = data;
   const Icon = ICONS[type] ?? Zap;
   const s = STATUS_STYLES[status];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.85 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className={`h-[104px] w-[240px] rounded-xl border bg-ink-800/90 shadow-card ${s.ring} ${
-        status === "active" ? "animate-pulse-ring" : ""
-      }`}
-    >
+    <div className={`h-[104px] w-[240px] rounded-container border shadow-overlay ${s.ring}`}>
       <div className="flex h-full flex-col justify-between p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className={`grid h-7 w-7 place-items-center rounded-md ${s.badge}`}>
-              <Icon size={15} />
+            <span className={`grid h-7 w-7 place-items-center rounded-control ${s.icon}`}>
+              <Icon size={15} aria-hidden="true" />
             </span>
-            <span className={`text-sm font-semibold ${s.text}`}>{label}</span>
+            <span className="max-w-[130px] text-sm font-semibold leading-tight text-text">
+              {label}
+            </span>
           </div>
-          <span className="text-[10px] font-medium uppercase tracking-wider text-paper-100/40">
-            {type.replace("_", " ")}
-          </span>
+          <span className="text-small text-muted">{STATE_TYPE_LABELS[type]}</span>
         </div>
-        <p className="line-clamp-2 text-xs leading-snug text-paper-100/60">{description}</p>
+        <p
+          className={`line-clamp-2 text-small leading-snug ${active ? "text-text" : "text-muted"}`}
+        >
+          {description}
+        </p>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
