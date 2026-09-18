@@ -78,6 +78,7 @@ class AuditEventType(str, Enum):
     EXECUTION = "execution"
     ERROR = "error"
     WORKFLOW_COMPLETED = "workflow_completed"
+    DOCUMENTS_PURGED = "documents_purged"
 
 
 CONFIDENCE_PASS = 0.85

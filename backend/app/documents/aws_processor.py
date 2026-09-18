@@ -9,10 +9,13 @@ These are only exercised when DEMO_MODE=false.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
 from .processor import DocumentObjectStore, DocumentProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class S3ObjectStore(DocumentObjectStore):
@@ -39,8 +42,9 @@ class S3ObjectStore(DocumentObjectStore):
     def delete(self, key: str) -> None:
         try:
             self._s3.delete_object(Bucket=self._bucket, Key=key)
-        except Exception:  # noqa: BLE001 - best effort cleanup in demo context
-            pass
+            logger.info("deleted object bucket=%s key=%s", self._bucket, key)
+        except Exception as exc:  # noqa: BLE001 - best effort cleanup, but never silent
+            logger.warning("failed to delete object bucket=%s key=%s: %s", self._bucket, key, exc)
 
 
 def generate_object_key(workflow_id: str, filename: str) -> str:

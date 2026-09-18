@@ -47,15 +47,21 @@ class Services:
         self.repo: WorkflowRepository = self._build_repo()
         self.store, self.processor = self._build_documents()
         self.generator = WorkflowGenerator(self.llm, settings)
-        self.workflow_service = WorkflowService(
-            self.repo, self.generator, self.llm, settings, self.knowledge
-        )
         self.document_service = DocumentService(
             repo=self.repo,
             store=self.store,
             processor=self.processor,
             llm=self.llm,
             object_key_fn=generate_object_key,
+        )
+        self.workflow_service = WorkflowService(
+            self.repo,
+            self.generator,
+            self.llm,
+            settings,
+            self.knowledge,
+            document_service=self.document_service,
+            purge_documents_on_completion=settings.purge_documents_on_completion,
         )
         self.storage_mode = self._resolved_storage_mode()
         logger.info(
