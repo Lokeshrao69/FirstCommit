@@ -21,11 +21,11 @@ Parameters:
 
   BedrockModelId:
     Type: String
-    Default: global.amazon.nova-2-lite-v1:0
+    Default: anthropic.claude-3-5-sonnet-20240620-v1:0
 
   BedrockFastModelId:
     Type: String
-    Default: global.amazon.nova-2-lite-v1:0
+    Default: anthropic.claude-3-5-haiku-20241022-v1:0
 
   CorsOrigins:
     Type: String
@@ -35,6 +35,25 @@ Parameters:
     Type: Number
     Default: 1
     MinValue: 1
+
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: >
+      Optional email address for CloudWatch alarm notifications.
+      Leave blank to skip SNS topic creation.
+
+Conditions:
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
 
 Globals:
   Function:
@@ -53,6 +72,19 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref Environment
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
 
   # ==========================================================
   # S3 DOCUMENT STORAGE
@@ -79,11 +111,31 @@ Resources:
             Prefix: uploads/
             ExpirationInDays: !Ref DocumentRetentionDays
 
+      VersioningConfiguration:
+        Status: Suspended
+
       Tags:
         - Key: Project
           Value: FlowForge
         - Key: Environment
           Value: !Ref Environment
+
+  # Deny unencrypted uploads
+  DocumentBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DocumentBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyUnencryptedUploads
+            Effect: Deny
+            Principal: "*"
+            Action: s3:PutObject
+            Resource: !Sub "${DocumentBucket.Arn}/*"
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption: AES256
 
   # ==========================================================
   # DYNAMODB
@@ -92,6 +144,7 @@ Resources:
   WorkflowsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      TableName: !Sub "flowforge-${Environment}-workflows"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -103,15 +156,18 @@ Resources:
           KeyType: HASH
 
       PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
+        PointInTimeRecoveryEnabled: true
 
       Tags:
         - Key: Project
           Value: FlowForge
+        - Key: Environment
+          Value: !Ref Environment
 
   DocumentsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      TableName: !Sub "flowforge-${Environment}-documents"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -127,15 +183,18 @@ Resources:
           KeyType: RANGE
 
       PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
+        PointInTimeRecoveryEnabled: true
 
       Tags:
         - Key: Project
           Value: FlowForge
+        - Key: Environment
+          Value: !Ref Environment
 
   AuditTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      TableName: !Sub "flowforge-${Environment}-audit"
       BillingMode: PAY_PER_REQUEST
 
       AttributeDefinitions:
@@ -151,11 +210,13 @@ Resources:
           KeyType: RANGE
 
       PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
+        PointInTimeRecoveryEnabled: true
 
       Tags:
         - Key: Project
           Value: FlowForge
+        - Key: Environment
+          Value: !Ref Environment
 
   # ==========================================================
   # FASTAPI LAMBDA
@@ -172,7 +233,7 @@ Resources:
           APP_NAME: FlowForge
           ENVIRONMENT: !Ref Environment
           DEMO_MODE: "false"
-          MOCK_LLM: "true"
+          LOG_LEVEL: !Ref LogLevel
           API_GATEWAY_BASE_PATH: !Sub "/${Environment}"
 
           CORS_ORIGINS: !Ref CorsOrigins
@@ -201,9 +262,10 @@ Resources:
         # ----------------------------------------------------
 
         - Statement:
-            - Sid: DocumentObjectAccess
+            - Sid: DocumentObjectReadWrite
               Effect: Allow
               Action:
+                - s3:GetObject
                 - s3:PutObject
                 - s3:DeleteObject
               Resource: !Sub "${DocumentBucket.Arn}/uploads/*"
@@ -218,6 +280,8 @@ Resources:
               Action:
                 - dynamodb:GetItem
                 - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
                 - dynamodb:Query
               Resource: !GetAtt WorkflowsTable.Arn
 
@@ -226,6 +290,8 @@ Resources:
               Action:
                 - dynamodb:GetItem
                 - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
                 - dynamodb:Query
               Resource: !GetAtt DocumentsTable.Arn
 
@@ -248,20 +314,30 @@ Resources:
                 - textract:DetectDocumentText
               Resource: "*"
 
-
         # ----------------------------------------------------
         # BEDROCK
         # ----------------------------------------------------
 
         - Statement:
-            - Sid: BedrockModels
+            - Sid: BedrockModelInvoke
               Effect: Allow
               Action:
                 - bedrock:InvokeModel
               Resource:
-                - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}:${AWS::AccountId}:inference-profile/${BedrockModelId}"
-                - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}:${AWS::AccountId}:inference-profile/${BedrockFastModelId}"
-                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0"
+                - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}::foundation-model/${BedrockModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:${BedrockRegion}::foundation-model/${BedrockFastModelId}"
+
+        # ----------------------------------------------------
+        # CLOUDWATCH LOGS (Lambda auto-creates; explicit for SAM)
+        # ----------------------------------------------------
+
+        - Statement:
+            - Sid: CloudWatchLogs
+              Effect: Allow
+              Action:
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
 
       Events:
 
@@ -284,15 +360,18 @@ Resources:
         Environment: !Ref Environment
 
   # ==========================================================
-  # CLOUDWATCH
+  # CLOUDWATCH LOG GROUP
   # ==========================================================
 
   FlowForgeApiLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${FlowForgeApiFunction}"
-      RetentionInDays: 7
+      RetentionInDays: 14
 
+  # ==========================================================
+  # CLOUDWATCH METRIC FILTERS
+  # ==========================================================
 
   WorkflowCompletedMetricFilter:
     Type: AWS::Logs::MetricFilter
@@ -318,11 +397,98 @@ Resources:
     Type: AWS::Logs::MetricFilter
     Properties:
       LogGroupName: !Ref FlowForgeApiLogGroup
-      FilterPattern: '"error"'
+      FilterPattern: '"ERROR"'
       MetricTransformations:
         - MetricNamespace: FlowForge
           MetricName: ApplicationErrors
           MetricValue: "1"
+
+  LambdaThrottleMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref FlowForgeApiLogGroup
+      FilterPattern: '"ThrottlingException"'
+      MetricTransformations:
+        - MetricNamespace: FlowForge
+          MetricName: BedrockThrottles
+          MetricValue: "1"
+
+  # ==========================================================
+  # CLOUDWATCH ALARMS
+  # ==========================================================
+
+  # Optional SNS topic for alarm notifications
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasAlarmEmail
+    Properties:
+      TopicName: !Sub "flowforge-${Environment}-alarms"
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlarmEmail
+
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "flowforge-${Environment}-lambda-errors"
+      AlarmDescription: >
+        Fires when the FlowForge Lambda produces 5 or more application
+        errors within a 5-minute window.
+      Namespace: FlowForge
+      MetricName: ApplicationErrors
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If
+        - HasAlarmEmail
+        - [!Ref AlarmTopic]
+        - !Ref "AWS::NoValue"
+
+  LambdaThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "flowforge-${Environment}-bedrock-throttles"
+      AlarmDescription: >
+        Fires when Bedrock throttling events reach 10 or more within
+        a 5-minute window, indicating sustained capacity pressure.
+      Namespace: FlowForge
+      MetricName: BedrockThrottles
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If
+        - HasAlarmEmail
+        - [!Ref AlarmTopic]
+        - !Ref "AWS::NoValue"
+
+  LambdaDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "flowforge-${Environment}-lambda-duration"
+      AlarmDescription: >
+        Fires when average Lambda duration exceeds 25 seconds (of the
+        30-second timeout), indicating the function may start timing out.
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref FlowForgeApiFunction
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 25000
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If
+        - HasAlarmEmail
+        - [!Ref AlarmTopic]
+        - !Ref "AWS::NoValue"
 
 Outputs:
 
@@ -350,3 +516,7 @@ Outputs:
   LambdaFunctionName:
     Description: FlowForge API Lambda
     Value: !Ref FlowForgeApiFunction
+
+  LambdaFunctionArn:
+    Description: FlowForge API Lambda ARN
+    Value: !GetAtt FlowForgeApiFunction.Arn

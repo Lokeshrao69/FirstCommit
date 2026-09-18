@@ -64,3 +64,14 @@ jobs:
         run: python evaluation/generate_test_documents.py
       - name: Run evaluation (strict)
         run: python evaluation/run_evaluation.py --strict
+
+  infrastructure:
+    name: Infrastructure (SAM validate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      - name: Validate SAM template
+        run: sam validate --lint --template infrastructure/template.yaml

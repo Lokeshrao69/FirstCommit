@@ -15,4 +15,4 @@ region = "ap-south-1"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = false
-parameter_overrides = "Environment=\"staging\" BedrockRegion=\"us-east-1\" DocumentRetentionDays=\"1\""
+parameter_overrides = "Environment=\"staging\" BedrockRegion=\"us-east-1\" LogLevel=\"INFO\" DocumentRetentionDays=\"1\""
