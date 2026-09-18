@@ -16,6 +16,12 @@ class Settings:
         self.demo_mode: bool = env.get("DEMO_MODE", "true").lower() in {"1", "true", "yes"}
         self.mock_llm: bool = env.get("MOCK_LLM", "false").lower() in {"1", "true", "yes"}
         self.demo_user_id: str = env.get("DEMO_USER_ID", "demo-user")
+        self.allow_mock_fallback: bool = (
+            env.get("ALLOW_MOCK_FALLBACK", "false").lower() in {"1", "true", "yes"}
+        )
+        self.purge_documents_on_completion: bool = (
+            env.get("PURGE_DOCUMENTS_ON_COMPLETION", "true").lower() in {"1", "true", "yes"}
+        )
 
         raw_origins = env.get("CORS_ORIGINS", '["http://localhost:5173"]')
         try:
@@ -70,3 +76,11 @@ def get_settings() -> Settings:
 def override_settings(env: dict[str, str]) -> Settings:
     get_settings.cache_clear()
     return Settings(env)
+
+
+class ServiceConfigurationError(RuntimeError):
+    """Raised when a required production service cannot be initialized.
+
+    Outside DEMO_MODE the application fails closed: it never silently swaps a
+    missing AWS service for a mock unless ALLOW_MOCK_FALLBACK=true.
+    """

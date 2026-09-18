@@ -34,15 +34,18 @@ DEMO_GOAL = "I want to apply for the Merit Excellence Scholarship"
 @pytest.fixture(autouse=True)
 def _reset_settings() -> None:
     yield
-    os.environ.pop("DEMO_MODE", None)
+    for var in ("DEMO_MODE", "MOCK_LLM", "ALLOW_MOCK_FALLBACK", "PURGE_DOCUMENTS_ON_COMPLETION"):
+        os.environ.pop(var, None)
     get_settings.cache_clear()
     get_services.cache_clear()
 
 
 def _offline_client(monkeypatch, demo: bool) -> TestClient:
-    """Non-demo client where AWS init is forced to fail, so Services falls
-    back to in-memory/mock components while settings.demo_mode stays as set."""
+    """Client where AWS init is forced to fail, so Services falls back to
+    in-memory/mock components while settings.demo_mode stays as set. Fallback
+    is enabled explicitly so fail-closed (4A) does not block the route tests."""
     os.environ["DEMO_MODE"] = "true" if demo else "false"
+    os.environ["ALLOW_MOCK_FALLBACK"] = "true"
     get_settings.cache_clear()
     get_services.cache_clear()
 
