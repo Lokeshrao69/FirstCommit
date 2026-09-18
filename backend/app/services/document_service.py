@@ -2,11 +2,18 @@
 
 upload -> store -> extract text -> classify -> extract fields -> persist.
 Cross-document validation runs later at the `validation` state (workflow_service).
+
+Storage hardening (4C): records keep both the object key (`storage_key`) and the
+storage URI (`s3_key`); failed processing deletes stored bytes best-effort; and
+`purge_workflow_documents` removes bytes for a finished workflow, marking each
+record's `purged_at`.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
+from typing import Optional
 
 from ..ai.llm_provider import LLMProvider
 from ..core.observability import log_event
@@ -14,6 +21,26 @@ from ..documents.processor import DocumentObjectStore, DocumentProcessor
 from ..models.document import DocumentRecord
 from ..models.enums import DocumentStatus
 from ..storage.repository import WorkflowRepository
+
+logger = logging.getLogger(__name__)
+
+
+def record_key(doc: DocumentRecord) -> Optional[str]:
+    """Return the raw object key to operate on for a DocumentRecord.
+
+    Uses `storage_key` when present, otherwise unwraps legacy storage URIs from
+    `s3_key`: `s3://bucket/key` -> `key`, `mock://key` -> `key`. A bare key is
+    returned unchanged; documents without stored bytes return None.
+    """
+    value = doc.storage_key or doc.s3_key
+    if not value:
+        return None
+    if value.startswith("s3://"):
+        parts = value[len("s3://") :].split("/", 1)
+        return parts[1] if len(parts) == 2 else None
+    if value.startswith("mock://"):
+        return value[len("mock://") :] or None
+    return value
 
 
 class DocumentService:
@@ -51,6 +78,7 @@ class DocumentService:
         try:
             key = self._object_key_fn(workflow_id, filename)
             doc.s3_key = self._store.put(key, content, mime_type)
+            doc.storage_key = key
 
             text = self._processor.extract_text(content, filename, mime_type)
             classification = self._llm.classify_document(text)
@@ -77,6 +105,7 @@ class DocumentService:
         except Exception as exc:  # noqa: BLE001 - normalized to a stable error
             doc.status = DocumentStatus.FAILED
             self._repo.save_document(doc)
+            self._delete_best_effort(doc)
 
             log_event(
                 "error",
@@ -88,6 +117,59 @@ class DocumentService:
             )
 
             raise DocumentProcessingException(str(exc)) from exc
+
+    def purge_workflow_documents(self, workflow_id: str) -> int:
+        """Delete stored bytes for every document of a finished workflow.
+
+        Best-effort per document: a storage failure is logged and does not abort
+        the other deletions. Returns the number of records marked purged.
+        """
+        purged = 0
+        for doc in self._repo.list_documents(workflow_id):
+            key = record_key(doc)
+            if not key:
+                continue
+            try:
+                self._store.delete(key)
+            except Exception as exc:  # noqa: BLE001 - best effort cleanup
+                logger.warning(
+                    "purge failed for workflow=%s document=%s key=%s: %s",
+                    workflow_id,
+                    doc.document_id,
+                    key,
+                    exc,
+                )
+                continue
+            doc.purged_at = _now()
+            self._repo.save_document(doc)
+            purged += 1
+            log_event(
+                "document_purged",
+                workflow_id=workflow_id,
+                document_id=doc.document_id,
+                storage_key=key,
+            )
+        log_event(
+            "documents_purged",
+            workflow_id=workflow_id,
+            purged_count=purged,
+        )
+        return purged
+
+    def _delete_best_effort(self, doc: DocumentRecord) -> None:
+        key = record_key(doc)
+        if not key:
+            return
+        try:
+            self._store.delete(key)
+            logger.info("deleted stored bytes for failed document %s (%s)", doc.document_id, key)
+        except Exception as exc:  # noqa: BLE001 - best effort cleanup
+            logger.warning(
+                "failed to delete stored bytes for document %s key=%s: %s",
+                doc.document_id,
+                key,
+                exc,
+            )
 
 
 def _now() -> str:

@@ -41,6 +41,7 @@ class DocumentRecord(BaseModel):
     filename: str
     mime_type: str
     s3_key: Optional[str] = None
+    storage_key: Optional[str] = None
     classification: Optional[str] = None
     classification_confidence: Optional[float] = None
     extracted_fields: dict[str, ExtractedField] = Field(default_factory=dict)
@@ -49,6 +50,7 @@ class DocumentRecord(BaseModel):
     validation_issues: list["ValidationIssue"] = Field(default_factory=list)
     uploaded_at: str = Field(default_factory=utc_now_iso)
     processed_at: Optional[str] = None
+    purged_at: Optional[str] = None
 
 
 class ValidationIssue(BaseModel):

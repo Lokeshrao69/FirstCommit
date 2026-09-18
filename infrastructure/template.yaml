@@ -109,6 +109,8 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
 
+      ObjectOwnership: BucketOwnerEnforced
+
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         IgnorePublicAcls: true
@@ -121,6 +123,10 @@ Resources:
             Status: Enabled
             Prefix: uploads/
             ExpirationInDays: !Ref DocumentRetentionDays
+          - Id: AbortIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
 
       VersioningConfiguration:
         Status: Suspended
@@ -131,7 +137,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # Deny unencrypted uploads
+  # Deny unencrypted uploads and any non-TLS access
   DocumentBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -142,11 +148,22 @@ Resources:
           - Sid: DenyUnencryptedUploads
             Effect: Deny
             Principal: "*"
-            Action: s3:PutObject
+            Action:
+              - s3:PutObject
             Resource: !Sub "${DocumentBucket.Arn}/*"
             Condition:
               StringNotEquals:
                 s3:x-amz-server-side-encryption: AES256
+          - Sid: DenyNonTlsRequests
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub "${DocumentBucket.Arn}"
+              - !Sub "${DocumentBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
 
   # ==========================================================
   # DYNAMODB

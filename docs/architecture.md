@@ -151,15 +151,50 @@ tables.
 ```
 Workflows   PK: workflowId                    goal, status, currentState, states,
                                               collectedData, createdAt, updatedAt
-Documents   PK: workflowId / SK: documentId   s3Key, filename, mimeType, classification,
-                                              extractedFields, validation*,
-                                              uploadedAt, processedAt
+Documents   PK: workflowId / SK: documentId   s3Key, storageKey, filename, mimeType,
+                                              classification, extractedFields,
+                                              validation*, uploadedAt, processedAt,
+                                              purgedAt
 AuditLog    PK: workflowId / SK: timestamp    eventId, eventType, fromState, toState,
                                               confidence, details
 ```
 
 Environment: `AWS_DYNAMODB_TABLE_WORKFLOWS`, `AWS_DYNAMODB_TABLE_DOCUMENTS`,
 `AWS_DYNAMODB_TABLE_AUDIT`, `AWS_S3_BUCKET`, `BEDROCK_REGION`.
+
+### Document storage and retention
+
+Every upload records two locators: `storage_key` (the raw object key, generated
+server-side as `uploads/{workflow_id}/{random}_{sanitized basename}`) and `s3_key`
+(the storage URI, `mock://key` in demo or `s3://bucket/key` in prod). The
+`record_key()` helper unwraps both, including legacy URI rows, so deletions always
+target the object itself (see `backend/app/services/document_service.py`).
+
+Hardening stacked on top of the happy-path upload:
+
+- **Size and content checks** are enforced before anything is persisted: oversized
+  files get `413`, empty files get `400` (in *all* modes), and outside `DEMO_MODE`
+  a magic-byte sniff (`app/documents/content_sniff.py`) rejects declared-type
+  mismatches with `415`. Only the signature/type check is relaxed in demo mode so
+  the frontend demo shortcut buttons keep working.
+- **Fail-closed composition** (`app/api/deps.py`): outside `DEMO_MODE` a service
+  that cannot be initialized raises `ServiceConfigurationError` rather than
+  silently degrading to mocks. `ALLOW_MOCK_FALLBACK=true` re-enables the legacy
+  fallback; `MOCK_LLM=true` remains an explicit opt-in. The resolved
+  `storage_mode` (`demo` | `aws` | `aws_fallback`) is logged at startup.
+- **Processing failure cleanup**: if upload→extract→classify fails, the stored
+  bytes are deleted best-effort before the record is marked `failed`.
+- **Retention purge**: reaching any terminal status (`completed`, `cancelled`,
+  `blocked`, `failed`, `generation_failed`) fires a purge callback that deletes
+  stored bytes best-effort, stamps `purged_at` on each record, and emits a
+  `documents_purged` audit event. Controlled by
+  `PURGE_DOCUMENTS_ON_COMPLETION` (default `true`).
+- **S3 lifecycle**: the bucket denies non-TLS access, denies unencrypted uploads,
+  aborts incomplete multipart uploads after 1 day, and enforces
+  `BucketOwnerEnforced` with server-side AES256 encryption
+  (`infrastructure/template.yaml`).
+- **Bounded demo store**: `MockObjectStore` mirrors the S3 lifecycle with a 50 MB /
+  500-object budget and oldest-first eviction, so demo memory stays bounded.
 
 ## 7. Configuration
 
@@ -169,6 +204,8 @@ cached `get_settings()`.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `DEMO_MODE` | `true` | Use mock LLM/repository/document stack (no AWS needed) |
+| `ALLOW_MOCK_FALLBACK` | `false` | Allow silent mock fallback outside DEMO_MODE |
+| `PURGE_DOCUMENTS_ON_COMPLETION` | `true` | Purge stored documents on terminal statuses |
 | `ENVIRONMENT` | `development` | Reported by `/health` |
 | `LOG_LEVEL` | `INFO` | Root logger level |
 | `CORS_ORIGINS` | `["http://localhost:5173"]` | Allowed browser origins |
@@ -179,9 +216,11 @@ cached `get_settings()`.
 | `BEDROCK_FAST_MODEL_ID` | Claude 3.5 Haiku | Classification + field extraction |
 | `BEDROCK_MAX_RETRIES` / `BEDROCK_RETRY_BASE_SECONDS` | `3` / `1.0` | Throttle backoff |
 
-**Fail-safe behavior:** in non-demo mode, if a provider or repository cannot be
-constructed the composition root logs a warning and falls back to the mock
-implementation, so a live demo degrades rather than crashes.
+**Fail-safe behavior:** outside `DEMO_MODE` the composition root fails closed — a
+provider or repository that cannot be initialized raises `ServiceConfigurationError`
+so a misconfigured deployment never silently serves a degraded mock stack. Set
+`ALLOW_MOCK_FALLBACK=true` to restore the legacy degrade-to-mock behavior; the
+resolved storage mode is always logged at startup.
 
 ## 8. Errors and observability
 
@@ -203,7 +242,8 @@ implementation, so a live demo degrades rather than crashes.
 - **Human in the loop:** no consequential action executes without a prior approval gate;
   demo submission is simulated.
 - **Least privilege:** S3 objects are private and server-side encrypted; keys are
-  generated server-side; uploads are MIME- and size-checked.
+  generated server-side; uploads are MIME- and size-checked and magic-byte checked
+  in non-demo mode; TLS is required and incomplete multipart uploads are aborted.
 - **No real data:** all demo documents and profiles are fictional.
 
 ## 10. Deployment

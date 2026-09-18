@@ -75,6 +75,8 @@ class DynamoRepository(WorkflowRepository):
             data.pop(key, None)
         data.setdefault("workflow_id", workflow_id)
         data.setdefault("document_id", document_id)
+        data.setdefault("storage_key", None)
+        data.setdefault("purged_at", None)
         return DocumentRecord.model_validate(data)
 
     def list_documents(self, workflow_id: str) -> list[DocumentRecord]:
@@ -92,6 +94,8 @@ class DynamoRepository(WorkflowRepository):
             data.setdefault("workflow_id", workflow_id)
             if doc_id:
                 data.setdefault("document_id", doc_id)
+            data.setdefault("storage_key", None)
+            data.setdefault("purged_at", None)
             docs.append(DocumentRecord.model_validate(data))
         return docs
 
