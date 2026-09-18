@@ -44,8 +44,22 @@ class S3ObjectStore(DocumentObjectStore):
 
 
 def generate_object_key(workflow_id: str, filename: str) -> str:
-    safe = "".join(c for c in filename if c.isalnum() or c in "._- ").replace(" ", "_")
+    safe = _sanitize_key_part(filename)
     return f"uploads/{workflow_id}/{uuid.uuid4().hex[:12]}_{safe}"
+
+
+def _sanitize_key_part(filename: str) -> str:
+    """Reduce a client-supplied filename to a safe S3 key suffix.
+
+    Only the basename is used, so path traversal via ``/`` or ``\\`` is
+    impossible; characters outside A-Z/a-z/0-9/._- are dropped, leading dots
+    and underscores (which hide files) are stripped, and a degenerate result
+    falls back to ``document``.
+    """
+    base = filename.replace("\\", "/").rsplit("/", 1)[-1].strip()
+    safe = "".join(ch for ch in base if ch.isalnum() or ch in ". _-").replace(" ", "_")
+    safe = safe.lstrip("._")
+    return safe or "document"
 
 
 class TextractProcessor(DocumentProcessor):

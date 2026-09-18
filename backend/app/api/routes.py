@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from ..documents.content_sniff import validate_upload_content
 from ..models.api import (
     AdvanceWorkflowRequest,
     AdvanceWorkflowResponse,
@@ -113,6 +114,14 @@ async def upload_document(
     mime = file.content_type or "application/octet-stream"
     if mime not in settings.allowed_mime_types and not settings.demo_mode:
         raise HTTPException(status_code=415, detail="unsupported file type")
+    content_error = validate_upload_content(
+        mime=mime,
+        content=content,
+        allowed_mime_types=settings.allowed_mime_types,
+        strict=not settings.demo_mode,
+    )
+    if content_error is not None:
+        raise HTTPException(status_code=415, detail=content_error)
 
     workflow = services.workflow_service.get_workflow(workflow_id)
     if workflow is None:
