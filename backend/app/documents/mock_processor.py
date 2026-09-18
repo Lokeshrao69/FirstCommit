@@ -12,8 +12,12 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections import OrderedDict
 
 from .processor import DocumentObjectStore, DocumentProcessor
+
+DEFAULT_MAX_BYTES = 50 * 1024 * 1024
+DEFAULT_MAX_OBJECTS = 500
 
 TRANSCRIPT_HEADER = """Northbridge State University
 Office of the Registrar — Official Academic Transcript (DEMO)
@@ -102,15 +106,43 @@ and contains no real personal information.
 
 
 class MockObjectStore(DocumentObjectStore):
-    def __init__(self) -> None:
-        self._blobs: dict[str, bytes] = {}
+    """In-memory object store bounded by byte count and object count (4D).
+
+    Mirrors S3's object lifecycle for the demo: when the byte budget or the
+    object budget is exceeded the oldest object is evicted first. Defaults pass
+    any realistic demo workflow (50 MB / 500 objects).
+    """
+
+    def __init__(
+        self,
+        max_bytes: int = DEFAULT_MAX_BYTES,
+        max_objects: int = DEFAULT_MAX_OBJECTS,
+    ) -> None:
+        if max_bytes <= 0 or max_objects <= 0:
+            raise ValueError("max_bytes and max_objects must be positive")
+        self._max_bytes = max_bytes
+        self._max_objects = max_objects
+        self._blobs: OrderedDict[str, bytes] = OrderedDict()
+        self._total_bytes = 0
 
     def put(self, key: str, content: bytes, mime_type: str) -> str:
+        if key in self._blobs:
+            self._total_bytes -= len(self._blobs.pop(key))
         self._blobs[key] = content
+        self._total_bytes += len(content)
+        self._evict_oldest()
         return f"mock://{key}"
 
     def delete(self, key: str) -> None:
-        self._blobs.pop(key, None)
+        if key in self._blobs:
+            self._total_bytes -= len(self._blobs.pop(key))
+
+    def _evict_oldest(self) -> None:
+        while self._blobs and (
+            len(self._blobs) > self._max_objects or self._total_bytes > self._max_bytes
+        ):
+            oldest_key, oldest = self._blobs.popitem(last=False)
+            self._total_bytes -= len(oldest)
 
 
 class MockDocumentProcessor(DocumentProcessor):
