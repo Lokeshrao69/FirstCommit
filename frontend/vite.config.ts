@@ -2,6 +2,16 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
+// Sandboxed previews reach the dev server through a tunnel host; Vite 7 blocks unknown
+// hosts unless they are allow-listed. `VITE_ALLOWED_HOSTS=true` allows all.
+const allowedHostsEnv = process.env.VITE_ALLOWED_HOSTS;
+const allowedHosts: true | string[] | undefined =
+  allowedHostsEnv === "true"
+    ? true
+    : allowedHostsEnv
+      ? allowedHostsEnv.split(",").map((h) => h.trim())
+      : undefined;
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -9,8 +19,19 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "framer-motion", "@radix-ui/react-dialog", "@radix-ui/react-tooltip", "sonner", "lucide-react"],
+          flow: ["@xyflow/react"],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
+    allowedHosts,
     proxy: {
       "/api": {
         target: "http://127.0.0.1:8000",
