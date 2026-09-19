@@ -246,7 +246,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   - `sam deploy` to validate CloudFormation resource creation
   - End-to-end latency and accuracy measurement against a real foundation model
 ## Chunk 16 — Production Hardening & Full Zero-Mock Audit
-**Status:** ✅ done (`61 passed`, `ruff` clean, `cfn-lint` clean, frontend build clean, evaluation `--strict` green)
+**Status:** ✅ done (`114 passed`, `ruff` clean, `cfn-lint` clean, frontend build clean, evaluation `--strict` green)
 
 - **Zero-Mock & Silent-Fallback Audit**:
   - `frontend/src/services/api.ts`: fixed `USE_MOCK` condition from `import.meta.env.VITE_USE_MOCK !== "false"` to `import.meta.env.VITE_USE_MOCK === "true"`. Frontend builds now default to the real `HttpApi` instead of silently routing to `MockApi`.
@@ -259,7 +259,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   - `backend/app/core/rate_limit.py`: replaced single-process in-memory limiter with `DynamoDBRateLimiter` backed by DynamoDB `RateLimitsTable` using atomic `UpdateItem` (`ADD request_count :inc`) and native TTL auto-eviction (`expires_at`), preventing concurrency race conditions across serverless Lambda execution environments.
   - Demoted `SlidingWindowRateLimiter` to a documented soft secondary fallback used in `DEMO_MODE`, offline local testing, or when DynamoDB is temporarily unreachable.
   - `infrastructure/template.yaml`: added `RateLimitsTable` resource (PAY_PER_REQUEST, TTL on `expires_at`), granted IAM permissions (`GetItem`, `PutItem`, `UpdateItem`, `DeleteItem`), added `AWS_DYNAMODB_TABLE_RATE_LIMITS` environment variable, and added API Gateway `DefaultRouteSettings` with `ThrottlingBurstLimit: 100` and `ThrottlingRateLimit: 50` for perimeter throttling.
-  - Added unit test suite `backend/tests/test_lambda_handler.py` verifying Mangum wrapping FastAPI for API Gateway v2 HTTP events (66 total backend tests passing).
+  - Added unit test suite `backend/tests/test_lambda_handler.py` verifying Mangum wrapping FastAPI for API Gateway v2 HTTP events.
   - Enforced rate limits on critical endpoints:
     - `POST /workflows`: 20 requests / min
     - `POST /workflows/{id}/documents`: 30 requests / min
@@ -288,6 +288,15 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 - **Evaluation**:
   - `python evaluation/run_evaluation.py --strict` passes 100% across all 6 metrics.
 
+## Chunk 17 — Upstream Main Integration & Branch Synchronization
+**Status:** ✅ done (`114 passed`, `ruff` clean, `cfn-lint` clean, frontend build clean, evaluation `--strict` green, GitHub CI 4/4 green)
+
+- Merged `origin/main` (PR #4 guided flow redesign & PR #5 upload storage hardening) into `complete-infrastructure-and-eval`.
+- Resolved merge conflicts in `backend/app/api/deps.py` and `backend/app/api/routes.py`, preserving rate limiting alongside upstream content sniffing and fail-closed configurations.
+- Fixed CloudFormation S3 `OwnershipControls.Rules` schema in `infrastructure/template.yaml` (`cfn-lint` clean).
+- Validated all 114 tests passing in `backend/` test suite.
+- Pushed commit `2a57d9a` to `origin/complete-infrastructure-and-eval`; confirmed all 4 GitHub Actions checks passed on PR #6.
+
 ---
 
 ## Current checklist (spec §45 task list)
@@ -302,7 +311,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 6 | Workflow JSON schema | ✅ |
 | 7 | API contracts | ✅ `models/api.py` + routes |
 | 8 | Pydantic models | ✅ |
-| 9 | Deterministic state machine + tests | ✅ 67 tests pass (Chunks 13b, 14, 16) |
+| 9 | Deterministic state machine + tests | ✅ 114 tests pass (Chunks 13b, 14, 16, 17) |
 | 10 | Mock workflow | ✅ `knowledge/scholarship_process.json` |
 | 11 | Mock API response | ✅ mock provider + in-memory repo + `services/mock.ts` (explicit opt-in only) |
 | 12 | Frontend graph against mock | ✅ (Chunks 10–12, build + lint green) |
@@ -310,7 +319,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 14 | Evaluation + test documents | ✅ measured (mock path, all targets pass) |
 | 15 | CI/CD | ✅ `.github/workflows/ci.yml` (backend + frontend + eval + infra) |
 | 16 | Infrastructure (SAM/Lambda/IAM) | ✅ Chunk 14 & 16 — complete SAM template (`sam validate --lint` clean) |
-| 17 | Production Hardening & Zero-Mock Audit | ✅ Chunk 16 — DynamoDB rate limiter (fail-open), CORS environment guard, runbook, fail-fast AWS init |
+| 17 | Production Hardening & Zero-Mock Audit | ✅ Chunk 16 & 17 — DynamoDB rate limiter (fail-open), CORS environment guard, runbook, fail-fast AWS init |
 
 ## Known gaps / risks
 - **Live AWS verification blocked on credentials.** No AWS CLI or credentials are
