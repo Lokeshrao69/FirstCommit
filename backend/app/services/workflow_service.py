@@ -30,6 +30,7 @@ from ..models.enums import (
 )
 from ..models.workflow import State, Workflow
 from ..services.demo_scenario import DEMO_PROFILE
+from ..services.document_service import DocumentService
 from ..services.eligibility import check_eligibility
 from ..storage.repository import WorkflowRepository
 from ..workflow.errors import WorkflowNotFound
@@ -44,6 +45,16 @@ from ..workflow.state_machine import (
 
 logger = logging.getLogger(__name__)
 
+_TERMINAL_STATUSES = frozenset(
+    {
+        WorkflowStatus.COMPLETED,
+        WorkflowStatus.CANCELLED,
+        WorkflowStatus.BLOCKED,
+        WorkflowStatus.FAILED,
+        WorkflowStatus.GENERATION_FAILED,
+    }
+)
+
 
 class WorkflowService:
     def __init__(
@@ -53,6 +64,8 @@ class WorkflowService:
         llm: LLMProvider,
         settings: Settings,
         knowledge: dict,
+        document_service: Optional[DocumentService] = None,
+        purge_documents_on_completion: bool = True,
     ) -> None:
         self._repo = repo
         self._generator = generator
@@ -60,6 +73,8 @@ class WorkflowService:
         self._settings = settings
         self._knowledge = knowledge
         self._requirements = knowledge["process"]["requirements"]
+        self._document_service = document_service
+        self._purge_documents_on_completion = purge_documents_on_completion
 
     # ------------------------------------------------------------------ create
 
@@ -156,6 +171,9 @@ class WorkflowService:
 
         self._repo.save_workflow(workflow)
 
+        if self._purge_documents_on_completion and workflow.status in _TERMINAL_STATUSES:
+            self._purge_documents(workflow)
+
         if workflow.status == WorkflowStatus.COMPLETED:
             log_event(
                 "workflow_completed",
@@ -164,6 +182,29 @@ class WorkflowService:
             )
 
         return result
+
+    def _purge_documents(self, workflow: Workflow) -> None:
+        """Fire the document-retention callback for a terminal workflow.
+
+        Deletes stored bytes (best-effort) and records a `documents_purged`
+        audit event so retention is observable.
+        """
+        if self._document_service is None:
+            return
+        purged = self._document_service.purge_workflow_documents(workflow.workflow_id)
+        self._repo.append_audit(
+            AuditEvent(
+                workflow_id=workflow.workflow_id,
+                event_type=AuditEventType.DOCUMENTS_PURGED,
+                details={"purged_count": purged, "status": workflow.status.value},
+            )
+        )
+        log_event(
+            "documents_purged",
+            workflow_id=workflow.workflow_id,
+            purged_count=purged,
+            status=workflow.status.value,
+        )
 
     # ------------------------------------------------------------- internals
 

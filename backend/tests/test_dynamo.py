@@ -132,6 +132,62 @@ def test_dynamo_repository_document_crud():
     assert docs[0].document_id == "doc_abc_456"
 
 
+def test_dynamo_repository_document_maps_storage_and_purge_fields():
+    mock_client = MagicMock()
+    repo = DynamoRepository(
+        table_workflows="test-workflows",
+        table_documents="test-documents",
+        table_audit="test-audit",
+        client=mock_client,
+    )
+
+    doc = DocumentRecord(
+        workflow_id="wf_test_123",
+        document_id="doc_abc_456",
+        filename="transcript.pdf",
+        mime_type="application/pdf",
+        status=DocumentStatus.EXTRACTED,
+        storage_key="uploads/wf_test_123/abc.pdf",
+        s3_key="mock://uploads/wf_test_123/abc.pdf",
+        purged_at="2026-09-19T00:00:00+00:00",
+    )
+
+    repo.save_document(doc)
+    call_args = mock_client.put_item.call_args[1]
+    assert call_args["Item"]["storage_key"]["S"] == doc.storage_key
+    assert call_args["Item"]["purged_at"]["S"] == doc.purged_at
+
+    mock_client.get_item.return_value = {"Item": call_args["Item"]}
+    retrieved = repo.get_document("wf_test_123", "doc_abc_456")
+    assert retrieved is not None
+    assert retrieved.storage_key == doc.storage_key
+    assert retrieved.purged_at == doc.purged_at
+
+
+def test_dynamo_document_read_handles_legacy_rows_without_new_fields():
+    mock_client = MagicMock()
+    repo = DynamoRepository(
+        table_workflows="test-workflows",
+        table_documents="test-documents",
+        table_audit="test-audit",
+        client=mock_client,
+    )
+    legacy_item = {
+        "workflowId": {"S": "wf_test_123"},
+        "documentId": {"S": "doc_old"},
+        "filename": {"S": "old.pdf"},
+        "mime_type": {"S": "application/pdf"},
+        "status": {"S": "extracted"},
+        "s3_key": {"S": "mock://uploads/wf_test_123/old.pdf"},
+    }
+    mock_client.get_item.return_value = {"Item": legacy_item}
+    retrieved = repo.get_document("wf_test_123", "doc_old")
+    assert retrieved is not None
+    assert retrieved.storage_key is None
+    assert retrieved.purged_at is None
+    assert retrieved.s3_key == "mock://uploads/wf_test_123/old.pdf"
+
+
 def test_dynamo_repository_audit_crud_and_backward_compat():
     mock_client = MagicMock()
     repo = DynamoRepository(

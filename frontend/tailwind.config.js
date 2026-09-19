@@ -4,49 +4,42 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: {
-          950: "#0b0f1a",
-          900: "#121828",
-          800: "#1a2236",
-          700: "#242f4a",
+        bg: "rgb(var(--bg) / <alpha-value>)",
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        border: "rgb(var(--border) / <alpha-value>)",
+        text: "rgb(var(--text) / <alpha-value>)",
+        muted: "rgb(var(--text-muted) / <alpha-value>)",
+        primary: {
+          DEFAULT: "rgb(var(--primary) / <alpha-value>)",
+          hover: "rgb(var(--primary-hover) / <alpha-value>)",
         },
-        paper: {
-          50: "#f7f8fb",
-          100: "#eef0f6",
-          200: "#e0e4ee",
+        success: "rgb(var(--success) / <alpha-value>)",
+        warning: {
+          DEFAULT: "rgb(var(--warning) / <alpha-value>)",
+          bg: "rgb(var(--warning-bg) / <alpha-value>)",
         },
-        accent: {
-          DEFAULT: "#4f6bff",
-          soft: "#8fa2ff",
-          glow: "#aab8ff",
+        error: {
+          DEFAULT: "rgb(var(--error) / <alpha-value>)",
+          bg: "rgb(var(--error-bg) / <alpha-value>)",
         },
-        ok: "#2dd4a7",
-        warn: "#f5a623",
-        err: "#ef5b5b",
       },
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ["'Space Grotesk'", "Inter", "sans-serif"],
-        mono: ["'JetBrains Mono'", "ui-monospace", "monospace"],
+        sans: ["'IBM Plex Sans'", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+      },
+      fontSize: {
+        title: ["28px", "36px"],
+        section: ["18px", "28px"],
+        body: ["15px", "24px"],
+        small: ["13px", "20px"],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(11,15,26,0.06), 0 8px 24px rgba(11,15,26,0.08)",
-        glow: "0 0 0 1px rgba(79,107,255,0.25), 0 0 24px rgba(79,107,255,0.25)",
+        overlay: "0 12px 40px rgba(27, 34, 48, 0.16)",
+        "overlay-lg": "0 16px 48px rgba(27, 34, 48, 0.2)",
       },
-      keyframes: {
-        "fade-up": {
-          "0%": { opacity: "0", transform: "translateY(6px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
-        },
-        pulseRing: {
-          "0%": { boxShadow: "0 0 0 0 rgba(79,107,255,0.45)" },
-          "70%": { boxShadow: "0 0 0 10px rgba(79,107,255,0)" },
-          "100%": { boxShadow: "0 0 0 0 rgba(79,107,255,0)" },
-        },
-      },
-      animation: {
-        "fade-up": "fade-up 0.35s ease-out both",
-        "pulse-ring": "pulseRing 1.8s ease-out infinite",
+      borderRadius: {
+        control: "8px",
+        container: "12px",
       },
     },
   },

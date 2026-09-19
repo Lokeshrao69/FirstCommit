@@ -3,6 +3,21 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bg: 255 255 255;
+    --surface: 246 247 249;
+    --border: 226 229 234;
+    --text: 27 34 48;
+    --text-muted: 90 100 117;
+    --primary: 15 92 77;
+    --primary-hover: 11 74 62;
+    --success: 15 122 85;
+    --warning: 154 91 0;
+    --warning-bg: 255 246 229;
+    --error: 180 35 24;
+    --error-bg: 254 241 240;
+  }
+
   html,
   body,
   #root {
@@ -10,56 +25,119 @@
   }
 
   body {
-    @apply bg-ink-950 text-paper-50 antialiased;
+    @apply bg-bg font-sans text-text antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  :where(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}
+
+/* Motion: the only animations left respond to a user action (drawer slide,
+   dialog fade) or a document row switching to "Checked". Everything is gated
+   behind a prefers-reduced-motion check. */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-backdrop {
+    animation: ff-fade 150ms ease-out;
+  }
+  .animate-dialog {
+    animation: ff-dialog 150ms ease-out;
+  }
+  .animate-drawer {
+    animation: ff-drawer 200ms ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes ff-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ff-dialog {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ff-drawer {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
   }
 }
 
 @layer components {
-  .panel {
-    @apply rounded-2xl border border-ink-700/60 bg-ink-800/60 shadow-card backdrop-blur-sm;
+  /* Containers: document list, checklist, summary share one bordered surface.
+     Not floating cards. */
+  .ff-list {
+    @apply divide-y divide-border overflow-hidden rounded-container border border-border bg-white;
   }
 
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  .ff-row {
+    @apply flex items-center gap-3 px-4 py-3;
   }
 
-  .btn-primary {
-    @apply btn bg-accent text-white hover:bg-accent-soft hover:text-ink-900;
+  .ff-field {
+    @apply w-full rounded-control border border-border bg-white px-3 py-2 text-body text-text outline-none transition-colors placeholder:text-muted/70 focus:border-primary focus:ring-2 focus:ring-primary/25;
   }
 
-  .btn-ghost {
-    @apply btn border border-ink-700 bg-ink-800 text-paper-100 hover:border-ink-700/80 hover:bg-ink-700;
+  fieldset:disabled .ff-field,
+  .ff-field:disabled {
+    @apply bg-surface text-muted;
   }
 
-  .chip {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  code,
+  pre {
+    @apply font-mono;
   }
 }
 
-/* React Flow overrides (dark canvas) */
+/* --- React Flow (light canvas) --- */
 .react-flow__attribution {
-  @apply !bg-transparent !text-ink-700;
+  filter: grayscale(1) opacity(0.4);
 }
 
 .react-flow__controls {
-  @apply !rounded-xl !border !border-ink-700 !bg-ink-800 !shadow-card;
+  @apply overflow-hidden rounded-control border border-border bg-white shadow-overlay;
 }
 
 .react-flow__controls-button {
-  @apply !border-ink-700/50 !bg-ink-800 !fill-paper-100 !text-paper-100 hover:!bg-ink-700;
+  @apply !border-border !bg-white !fill-text !text-text hover:!bg-surface;
 }
 
-.react-flow__edge {
-  @apply !stroke-paper-50/60;
+.react-flow__edge.ff-edge-active {
+  stroke-width: 2;
 }
 
-/* Slim scrollbars for the audit feed + side rail */
+/* Slim scrollbars for the activity drawer */
 .slim-scroll::-webkit-scrollbar {
   width: 6px;
 }
 .slim-scroll::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-ink-700;
+  @apply rounded-full bg-muted/40;
 }
 .slim-scroll::-webkit-scrollbar-track {
   background: transparent;
