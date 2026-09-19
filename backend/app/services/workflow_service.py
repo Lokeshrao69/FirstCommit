@@ -132,6 +132,7 @@ class WorkflowService:
         }
 
         validation = workflow.collected_data.get("validation_result")
+        submission = workflow.collected_data.get("submission_result")
 
         return WorkflowDetailResponse(
             workflow_id=workflow.workflow_id,
@@ -144,6 +145,7 @@ class WorkflowService:
             states=[s.model_dump() for s in workflow.states],
             collected_documents=sorted(docs),
             validation=validation,
+            submission=submission,
         )
 
     # ----------------------------------------------------------------- advance
@@ -158,6 +160,12 @@ class WorkflowService:
         validation_result = ctx.results.get(_validation_state_id(workflow))
         if validation_result:
             workflow.collected_data["validation_result"] = validation_result
+        # Persist the execution receipt: a cold start must not lose the confirmation id.
+        for state in workflow.states:
+            if state.type == StateType.EXECUTION and state.id in ctx.results:
+                package = ctx.results[state.id].get("package")
+                if package:
+                    workflow.collected_data["submission_result"] = package
         for event in result.events:
             self._repo.append_audit(event)
 
@@ -212,7 +220,8 @@ class WorkflowService:
         docs = self._repo.list_documents(workflow.workflow_id)
         collected = {d.classification: d for d in docs if d.classification}
         data: dict[str, Any] = dict(workflow.collected_data)
-        data["profile"] = data.get("profile") or DEMO_PROFILE
+        if not data.get("profile"):
+            data["profile"] = DEMO_PROFILE if self._settings.demo_mode else {}
         return ExecutionContext(data=data, collected_documents=collected, results={})
 
     def _build_handlers(self, workflow: Workflow) -> StepHandlerMap:

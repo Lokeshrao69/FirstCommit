@@ -11,8 +11,20 @@ parallel = true
 stack_name = "flowforge-staging"
 resolve_s3 = true
 s3_prefix = "flowforge-staging"
+
+# AWS Region for deploying Lambda, API Gateway, S3, DynamoDB, and CloudWatch.
+# Can be any region that supports SAM and your target workload (e.g. ap-south-1, us-east-1).
 region = "ap-south-1"
+
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = false
-parameter_overrides = "Environment=\"staging\" BedrockRegion=\"us-east-1\" LogLevel=\"INFO\" MockLlm=\"false\" DocumentRetentionDays=\"1\""
+
+# Parameter Overrides:
+# - Environment: deployment stage (development, staging, or production). In production, CORS strictly allows FrontendDomain only.
+# - BedrockRegion: AWS region for Bedrock model calls (e.g. us-east-1). IMPORTANT: You MUST request model access in this region's AWS Console.
+# - LogLevel: DEBUG, INFO, WARNING, or ERROR.
+# - MockLlm: "false" for live Bedrock invocations; "true" to exercise AWS infra with mock AI output.
+# - DocumentRetentionDays: S3 lifecycle auto-expiration period for temporary uploads.
+# - FrontendDomain: Primary production/staging frontend origin allowed for CORS (e.g. https://app.yourdomain.com).
+parameter_overrides = "Environment=\"staging\" BedrockRegion=\"us-east-1\" LogLevel=\"INFO\" MockLlm=\"false\" DocumentRetentionDays=\"1\" FrontendDomain=\"https://app.yourdomain.com\""

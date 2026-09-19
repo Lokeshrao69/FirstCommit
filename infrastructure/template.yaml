@@ -21,15 +21,21 @@ Parameters:
 
   BedrockModelId:
     Type: String
-    Default: anthropic.claude-3-5-sonnet-20240620-v1:0
+    Default: anthropic.claude-sonnet-4-5-20250929-v1:0
 
   BedrockFastModelId:
     Type: String
-    Default: anthropic.claude-3-5-haiku-20241022-v1:0
+    Default: anthropic.claude-haiku-4-5-20251001-v1:0
 
   CorsOrigins:
     Type: String
     Default: '["http://localhost:5173"]'
+
+  FrontendDomain:
+    Type: String
+    Default: "http://localhost:5173"
+    Description: >
+      Configured production/staging frontend origin allowed for CORS (e.g. https://app.example.com or http://localhost:5173).
 
   DocumentRetentionDays:
     Type: Number
@@ -65,6 +71,7 @@ Parameters:
 
 Conditions:
   HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+  IsNotProduction: !Not [!Equals [!Ref Environment, "production"]]
 
 Globals:
   Function:
@@ -83,9 +90,17 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref Environment
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
       CorsConfiguration:
         AllowOrigins:
-          - "*"
+          !If
+            - IsNotProduction
+            - - "http://localhost:5173"
+              - "http://127.0.0.1:5173"
+              - !Ref FrontendDomain
+            - - !Ref FrontendDomain
         AllowMethods:
           - GET
           - POST
@@ -109,7 +124,9 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
 
-      ObjectOwnership: BucketOwnerEnforced
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
 
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -129,7 +146,7 @@ Resources:
               DaysAfterInitiation: 1
 
       VersioningConfiguration:
-        Status: Suspended
+        Status: Enabled
 
       Tags:
         - Key: Project
@@ -185,6 +202,10 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
 
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
       Tags:
         - Key: Project
           Value: FlowForge
@@ -210,6 +231,10 @@ Resources:
 
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
+
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
 
       Tags:
         - Key: Project
@@ -237,6 +262,33 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
 
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+      Tags:
+        - Key: Project
+          Value: FlowForge
+        - Key: Environment
+          Value: !Ref Environment
+
+  RateLimitsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
       Tags:
         - Key: Project
           Value: FlowForge
@@ -263,12 +315,14 @@ Resources:
           API_GATEWAY_BASE_PATH: !Sub "/${Environment}"
 
           CORS_ORIGINS: !Ref CorsOrigins
+          FRONTEND_DOMAIN: !Ref FrontendDomain
 
           AWS_S3_BUCKET: !Ref DocumentBucket
 
           AWS_DYNAMODB_TABLE_WORKFLOWS: !Ref WorkflowsTable
           AWS_DYNAMODB_TABLE_DOCUMENTS: !Ref DocumentsTable
           AWS_DYNAMODB_TABLE_AUDIT: !Ref AuditTable
+          AWS_DYNAMODB_TABLE_RATE_LIMITS: !Ref RateLimitsTable
 
           BEDROCK_REGION: !Ref BedrockRegion
           BEDROCK_MODEL_ID: !Ref BedrockModelId
@@ -329,6 +383,15 @@ Resources:
                 - dynamodb:Query
               Resource: !GetAtt AuditTable.Arn
 
+            - Sid: RateLimitsTableAccess
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource: !GetAtt RateLimitsTable.Arn
+
         # ----------------------------------------------------
         # TEXTRACT
         # ----------------------------------------------------
@@ -338,6 +401,8 @@ Resources:
               Effect: Allow
               Action:
                 - textract:DetectDocumentText
+                - textract:StartDocumentTextDetection
+                - textract:GetDocumentTextDetection
               Resource: "*"
 
         # ----------------------------------------------------
@@ -428,7 +493,7 @@ Resources:
     Type: AWS::Logs::MetricFilter
     Properties:
       LogGroupName: !Ref FlowForgeApiLogGroup
-      FilterPattern: '"ERROR"'
+      FilterPattern: '{ $.event = "error" }'
       MetricTransformations:
         - MetricNamespace: FlowForge
           MetricName: ApplicationErrors
@@ -448,15 +513,19 @@ Resources:
   # CLOUDWATCH ALARMS
   # ==========================================================
 
-  # Optional SNS topic for alarm notifications
+  # SNS topic for alarm notifications (unconditionally created)
   AlarmTopic:
     Type: AWS::SNS::Topic
-    Condition: HasAlarmEmail
     Properties:
       TopicName: !Sub "flowforge-${Environment}-alarms"
-      Subscription:
-        - Protocol: email
-          Endpoint: !Ref AlarmEmail
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
 
   LambdaErrorAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -473,10 +542,8 @@ Resources:
       Threshold: 5
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
-      AlarmActions: !If
-        - HasAlarmEmail
-        - [!Ref AlarmTopic]
-        - !Ref "AWS::NoValue"
+      AlarmActions:
+        - !Ref AlarmTopic
 
   LambdaThrottleAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -493,10 +560,8 @@ Resources:
       Threshold: 10
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
-      AlarmActions: !If
-        - HasAlarmEmail
-        - [!Ref AlarmTopic]
-        - !Ref "AWS::NoValue"
+      AlarmActions:
+        - !Ref AlarmTopic
 
   LambdaDurationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -516,10 +581,8 @@ Resources:
       Threshold: 25000
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
-      AlarmActions: !If
-        - HasAlarmEmail
-        - [!Ref AlarmTopic]
-        - !Ref "AWS::NoValue"
+      AlarmActions:
+        - !Ref AlarmTopic
 
 Outputs:
 
@@ -543,6 +606,10 @@ Outputs:
   AuditTableName:
     Description: DynamoDB audit table
     Value: !Ref AuditTable
+
+  RateLimitsTableName:
+    Description: DynamoDB rate limits table with TTL
+    Value: !Ref RateLimitsTable
 
   LambdaFunctionName:
     Description: FlowForge API Lambda

@@ -1,4 +1,4 @@
-﻿"""Amazon Bedrock-backed LLM provider.
+"""Amazon Bedrock-backed LLM provider.
 
 Controlled AI components only: workflow generation, document classification,
 field extraction, and cross-validation. Each call requests strict JSON output and
@@ -164,7 +164,7 @@ class BedrockProvider(LLMProvider):
         prompt: str,
         model_id: str,
     ) -> str:
-        """Invoke legacy Anthropic models using InvokeModel."""
+        """Invoke Anthropic Claude models (e.g. Claude Sonnet 4.5, Claude Haiku 4.5) using InvokeModel."""
 
         body = json.dumps(
             {

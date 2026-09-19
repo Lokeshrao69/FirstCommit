@@ -212,8 +212,8 @@ cached `get_settings()`.
 | `MAX_DOCUMENT_SIZE_MB` | `10` | Upload size limit |
 | `ALLOWED_MIME_TYPES` | pdf/png/jpeg | Upload MIME allow-list |
 | `CONFIDENCE_PASS` / `CONFIDENCE_WARN` | `0.85` / `0.60` | Confidence gates |
-| `BEDROCK_MODEL_ID` | Claude 3.5 Sonnet | Workflow generation + cross-validation |
-| `BEDROCK_FAST_MODEL_ID` | Claude 3.5 Haiku | Classification + field extraction |
+| `BEDROCK_MODEL_ID` | Claude Sonnet 4.5 | Workflow generation + cross-validation |
+| `BEDROCK_FAST_MODEL_ID` | Claude Haiku 4.5 | Classification + field extraction |
 | `BEDROCK_MAX_RETRIES` / `BEDROCK_RETRY_BASE_SECONDS` | `3` / `1.0` | Throttle backoff |
 
 **Fail-safe behavior:** outside `DEMO_MODE` the composition root fails closed — a

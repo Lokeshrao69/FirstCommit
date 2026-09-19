@@ -32,11 +32,13 @@ app.include_router(router)
 
 @app.get("/health")
 def health() -> dict:
+    curr_settings = get_settings()
     return {
-        "app": settings.app_name,
-        "environment": settings.environment,
-        "demo_mode": settings.demo_mode,
-        "user": settings.demo_user_id,
+        "status": "healthy",
+        "app": curr_settings.app_name,
+        "environment": curr_settings.environment,
+        "demo_mode": curr_settings.demo_mode,
+        "user": curr_settings.demo_user_id,
     }
 
 
@@ -51,4 +53,9 @@ get_services()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=True)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8000")),
+        reload=settings.environment == "development",
+    )

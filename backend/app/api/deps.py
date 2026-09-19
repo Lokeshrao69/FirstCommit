@@ -82,7 +82,6 @@ class Services:
 
         try:
             return BedrockProvider(self.settings)
-
         except Exception as exc:  # noqa: BLE001 - normalized => fail closed or fallback
             if not self.settings.allow_mock_fallback:
                 raise ServiceConfigurationError(
@@ -105,6 +104,7 @@ class Services:
                 table_documents=self.settings.aws_ddb_documents,
                 table_audit=self.settings.aws_ddb_audit,
                 region=self.settings.aws_region,
+                retention_days=self.settings.record_retention_days,
             )
         except Exception as exc:  # noqa: BLE001
             if not self.settings.allow_mock_fallback:
@@ -125,7 +125,13 @@ class Services:
         try:
             return (
                 S3ObjectStore(self.settings.aws_s3_bucket, self.settings.aws_region),
-                TextractProcessor(self.settings.aws_region),
+                TextractProcessor(
+                    self.settings.aws_region,
+                    bucket=self.settings.aws_s3_bucket,
+                    max_sync_bytes=self.settings.textract_sync_max_bytes,
+                    async_poll_seconds=self.settings.textract_async_poll_seconds,
+                    async_timeout_seconds=self.settings.textract_async_timeout_seconds,
+                ),
             )
         except Exception as exc:  # noqa: BLE001
             if not self.settings.allow_mock_fallback:

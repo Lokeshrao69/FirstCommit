@@ -7,6 +7,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from ..core.rate_limit import (
+    document_upload_limiter,
+    rate_limit,
+    workflow_advance_limiter,
+    workflow_generation_limiter,
+)
 from ..documents.content_sniff import validate_upload_content
 from ..models.api import (
     AdvanceWorkflowRequest,
@@ -17,7 +23,7 @@ from ..models.api import (
     DocumentUploadResponse,
     WorkflowDetailResponse,
 )
-from ..models.enums import AuditEventType
+from ..models.enums import AuditEventType, StateStatus, StateType, WorkflowStatus
 from ..workflow.errors import (
     ExecutionError,
     InvalidTransitionError,
@@ -52,7 +58,11 @@ def _http(e: Exception) -> HTTPException:
     return HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/workflows", response_model=CreateWorkflowResponse)
+@router.post(
+    "/workflows",
+    response_model=CreateWorkflowResponse,
+    dependencies=[Depends(rate_limit(workflow_generation_limiter))],
+)
 def create_workflow(
     req: CreateWorkflowRequest, services: Services = Depends(get_services)
 ) -> CreateWorkflowResponse:
@@ -77,7 +87,11 @@ def get_workflow(
     return services.workflow_service.to_detail(workflow)
 
 
-@router.post("/workflows/{workflow_id}/advance", response_model=AdvanceWorkflowResponse)
+@router.post(
+    "/workflows/{workflow_id}/advance",
+    response_model=AdvanceWorkflowResponse,
+    dependencies=[Depends(rate_limit(workflow_advance_limiter))],
+)
 def advance(
     workflow_id: str,
     req: AdvanceWorkflowRequest,
@@ -102,7 +116,11 @@ def advance(
     return AdvanceWorkflowResponse(**payload)
 
 
-@router.post("/workflows/{workflow_id}/documents", response_model=DocumentUploadResponse)
+@router.post(
+    "/workflows/{workflow_id}/documents",
+    response_model=DocumentUploadResponse,
+    dependencies=[Depends(rate_limit(document_upload_limiter))],
+)
 async def upload_document(
     workflow_id: str,
     file: UploadFile = File(...),
@@ -114,7 +132,7 @@ async def upload_document(
     mime = file.content_type or "application/octet-stream"
     if not content:
         raise HTTPException(status_code=400, detail="empty file")
-    if mime not in settings.allowed_mime_types and not settings.demo_mode:
+    if mime not in settings.allowed_mime_types:
         raise HTTPException(status_code=415, detail="unsupported file type")
     content_error = validate_upload_content(
         mime=mime,
@@ -128,6 +146,7 @@ async def upload_document(
     workflow = services.workflow_service.get_workflow(workflow_id)
     if workflow is None:
         raise _http(WorkflowNotFound(f"workflow '{workflow_id}' not found"))
+    _require_accepting_documents(workflow)
 
     services.repo.append_audit(
         services.workflow_service.audit_event(
@@ -182,6 +201,25 @@ async def _read_within_limit(file: UploadFile, limit: int) -> bytes:
         if len(buffer) > limit:
             raise HTTPException(status_code=413, detail="file exceeds size limit")
     return bytes(buffer)
+
+
+def _require_accepting_documents(workflow: Any) -> None:
+    """Only an in-progress workflow paused on a document gate may receive uploads.
+
+    Anything else (finished, not yet started, or waiting on approval) is a 409 so a
+    stale client cannot append documents and audit rows to a closed run.
+    """
+    if workflow.status != WorkflowStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=409,
+            detail=f"workflow '{workflow.workflow_id}' is not accepting documents ({workflow.status.value})",
+        )
+    active = next((s for s in workflow.states if s.status == StateStatus.ACTIVE), None)
+    if active is None or active.type != StateType.DOCUMENT_REQUIRED:
+        raise HTTPException(
+            status_code=409,
+            detail="workflow is not waiting for documents; advance it to a document step first",
+        )
 
 
 def _fields_payload(record) -> dict[str, Any]:
