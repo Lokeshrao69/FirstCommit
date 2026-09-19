@@ -1,41 +1,56 @@
-import { type ButtonHTMLAttributes, type ReactNode, forwardRef } from "react";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/utils/cn";
 
-type Variant = "primary" | "secondary" | "tertiary" | "danger" | "dangerText";
-type Size = "sm" | "md";
+const button = cva(
+  [
+    "relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold",
+    "transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out",
+    "active:scale-[0.985] disabled:pointer-events-none disabled:opacity-50",
+  ],
+  {
+    variants: {
+      variant: {
+        primary:
+          "bg-brand-600 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_2px_rgba(16,24,40,0.2)] hover:bg-brand-700",
+        dark: "bg-ink-950 text-white shadow-raised hover:bg-ink-900",
+        secondary:
+          "border border-line bg-surface text-ink-900 shadow-card hover:border-line-strong hover:bg-canvas",
+        ghost: "text-ink-700 hover:bg-ink-950/[0.05] hover:text-ink-900",
+        danger: "border border-err-100 bg-err-50 text-err-600 hover:bg-err-100",
+      },
+      size: {
+        sm: "h-8 px-3 text-xs",
+        md: "h-10 px-4 text-sm",
+        lg: "h-11 px-5 text-sm",
+        icon: "h-9 w-9 p-0",
+      },
+    },
+    defaultVariants: { variant: "secondary", size: "md" },
+  },
+);
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
-  size?: Size;
-  children: ReactNode;
+export interface ButtonProps
+  extends ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof button> {
+  loading?: boolean;
 }
 
-const base =
-  "inline-flex items-center justify-center gap-2 rounded-control font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
-
-const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-[15px]",
-};
-
-const variants: Record<Variant, string> = {
-  primary: "bg-primary text-white hover:bg-primary-hover",
-  secondary: "border border-border bg-white text-text hover:bg-surface",
-  tertiary: "bg-transparent text-text hover:text-primary",
-  danger: "bg-error text-white hover:bg-error/90",
-  dangerText: "bg-transparent text-error hover:bg-error/10",
-};
-
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "secondary", size = "md", className = "", type = "button", children, ...rest },
+  { className, variant, size, loading = false, disabled, children, type = "button", ...rest },
   ref,
 ) {
   return (
     <button
       ref={ref}
       type={type}
-      className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={cn(button({ variant, size }), className)}
       {...rest}
     >
+      {loading && <Loader2 size={15} className="animate-spin" aria-hidden />}
       {children}
     </button>
   );

@@ -1,5 +1,10 @@
-import { WorkflowPage } from "@/pages/WorkflowPage";
+import { ErrorBoundary } from "@/components/Shell/ErrorBoundary";
+import { Demo } from "@/pages/Demo";
 
 export function App() {
-  return <WorkflowPage />;
+  return (
+    <ErrorBoundary>
+      <Demo />
+    </ErrorBoundary>
+  );
 }
