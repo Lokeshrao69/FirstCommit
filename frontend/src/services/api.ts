@@ -33,8 +33,17 @@ export interface FlowForgeApi {
   listAudit(workflowId: string): Promise<AuditResponse>;
 }
 
-// Default to HttpApi against real backend; MockApi only when VITE_USE_MOCK="true"
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
+export type ApiMode = "mock" | "live";
+
+/** Resolve the API mode: per-load URL param (?api=live or ?api=mock) > build-time env > live backend. */
+export function resolveApiMode(): ApiMode {
+  if (typeof window !== "undefined") {
+    const fromUrl = new URLSearchParams(window.location.search).get("api");
+    if (fromUrl === "live" || fromUrl === "mock") return fromUrl;
+  }
+  return import.meta.env.VITE_USE_MOCK === "true" ? "mock" : "live";
+}
+
 export const API_BASE = (import.meta.env.VITE_API_BASE ?? "/api").replace(/\/$/, "");
 
 const JSON_HEADERS = { "Content-Type": "application/json", Accept: "application/json" };
@@ -115,8 +124,8 @@ class MockApi implements FlowForgeApi {
   }
 }
 
-export function createApi(): FlowForgeApi {
-  return USE_MOCK ? new MockApi() : new HttpApi();
+export function createApi(mode: ApiMode = resolveApiMode()): FlowForgeApi {
+  return mode === "mock" ? new MockApi() : new HttpApi();
 }
 
 export { ApiError };

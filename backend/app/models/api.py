@@ -58,11 +58,11 @@ class AdvanceWorkflowRequest(BaseModel):
     )
     confirm: Optional[bool] = Field(
         default=None,
-        description="Generic confirmation for user_confirmed transitions.",
+        description="Reserved: Generic confirmation for future user_confirmed transition steps.",
     )
     document_id: Optional[str] = Field(
         default=None,
-        description="Optional reference to a specific uploaded document.",
+        description="Reserved: Optional reference to a specific uploaded document for targeted review.",
     )
 
 

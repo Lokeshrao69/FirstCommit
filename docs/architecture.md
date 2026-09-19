@@ -246,6 +246,17 @@ resolved storage mode is always logged at startup.
   in non-demo mode; TLS is required and incomplete multipart uploads are aborted.
 - **No real data:** all demo documents and profiles are fictional.
 
+### 9.1 Architectural limitations & multi-tenancy boundary
+
+- **Anonymous Prototype Scope:** FlowForge is implemented as an unauthenticated, single-tenant proof-of-concept / demo system. Access to `/workflows/{id}` and associated document uploads is gated by the entropy of the 12-character hexadecimal UUID (`wf_<12 hex>`) and rate limiting (DynamoDB token bucket / API Gateway throttling).
+- **Multi-Tenant Production Requirements:** Operating FlowForge in a production multi-user environment strictly requires adding:
+  1. API Gateway Cognito / OIDC authorizer validating user JWTs;
+  2. Owner identification (`owner_id`) propagated into `Workflow` and `DocumentRecord` models;
+  3. Ownership authorization checks enforcing `workflow.owner_id == request.user_id`;
+  4. DynamoDB partition keys and S3 object prefixes segregated by tenant/owner ID;
+  5. Role-based access control (RBAC) distinguishing submitters from human reviewers.
+- **Offline Evaluation Boundary:** Ground-truth metrics reported in `evaluation/` verify deterministic mock mechanics and schema rules under `DEMO_MODE=true`. They do not claim live Bedrock or Textract accuracy benchmarks, which require live AWS deployment and active model subscriptions.
+
 ## 10. Deployment
 
 Target is serverless: API Gateway + Lambda running the same FastAPI app, S3 for
