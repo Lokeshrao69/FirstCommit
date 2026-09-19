@@ -110,7 +110,8 @@
   }
 
   .hud-card {
-    @apply rounded-xl border border-slate-800/80 bg-[#090d16]/95 text-slate-100 shadow-hud backdrop-blur-md;
+    @apply rounded-xl border border-slate-800/80 bg-[#090d16]/95 text-slate-100 backdrop-blur-md;
+    box-shadow: 0 0 20px -2px rgba(245, 158, 11, 0.15);
   }
 
   .hud-label {
