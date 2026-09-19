@@ -71,6 +71,7 @@ Parameters:
 
 Conditions:
   HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+  IsNotProduction: !Not [!Equals [!Ref Environment, "production"]]
 
 Globals:
   Function:
@@ -94,9 +95,12 @@ Resources:
         ThrottlingRateLimit: 50
       CorsConfiguration:
         AllowOrigins:
-          - "http://localhost:5173"
-          - "http://127.0.0.1:5173"
-          - !Ref FrontendDomain
+          !If
+            - IsNotProduction
+            - - "http://localhost:5173"
+              - "http://127.0.0.1:5173"
+              - !Ref FrontendDomain
+            - - !Ref FrontendDomain
         AllowMethods:
           - GET
           - POST

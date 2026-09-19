@@ -3,16 +3,23 @@
 Protects expensive downstream services (Amazon Bedrock, Amazon Textract) from DoS
 and cost overruns across concurrent serverless Lambda execution environments.
 
-Architecture:
-1. Primary / Infrastructure layer: API Gateway DefaultRouteSettings in template.yaml
-   enforces perimeter burst and rate throttling before requests reach Lambda.
+Architecture & Failure Model:
+1. Perimeter / Infrastructure layer: API Gateway DefaultRouteSettings in template.yaml
+   enforces hard burst (100) and rate (50 req/s) throttling before requests reach Lambda.
 2. Distributed application layer: DynamoDBRateLimiter uses atomic counter updates
    in DynamoDB (RateLimitsTable) with native TTL auto-eviction. Atomic `UpdateItem`
    with `ADD request_count :inc` guarantees consistent distributed rate enforcement
    across all concurrent Lambda execution environments with zero distributed locks.
-3. In-memory soft secondary limiter: SlidingWindowRateLimiter acts as a soft secondary
-   fallback during local development, unit testing, and DEMO_MODE, or when DynamoDB
-   is unreachable.
+3. Fallback & Failure Mode (FAIL-OPEN):
+   When DynamoDB experiences an infrastructure error, network timeout, or credential issue,
+   the rate limiter DELIBERATELY FAILS OPEN to the local in-memory SlidingWindowRateLimiter.
+   Rationale:
+   - Failing CLOSED would cause a total cascading outage for legitimate users during
+     transient DynamoDB blips, even when the downstream services are completely healthy.
+   - API Gateway perimeter throttling serves as the absolute volumetric backstop against
+     DDoS attacks.
+   - The in-memory limiter acts as a soft secondary safeguard, enforcing best-effort
+     local limits per Lambda container without blocking legitimate traffic.
 """
 
 from __future__ import annotations
@@ -69,6 +76,12 @@ class DynamoDBRateLimiter:
 
     Uses atomic UpdateItem with ADD to increment a request counter for a given client
     within a discrete fixed time window. Old records are auto-deleted by DynamoDB TTL.
+
+    Failure Mode: FAIL-OPEN
+    If DynamoDB is unavailable or throws an unexpected exception, this limiter fails
+    open by delegating to an in-memory SlidingWindowRateLimiter. Requests are NOT
+    blindly rejected, preserving service availability while API Gateway provides the
+    hard perimeter backstop.
     """
 
     def __init__(
@@ -104,7 +117,9 @@ class DynamoDBRateLimiter:
         """Check if client exceeds rate limit.
 
         Performs an atomic increment on DynamoDB counter table.
-        Falls back to in-memory secondary limiter if in demo_mode or if DynamoDB fails.
+        If in demo_mode, delegates directly to the in-memory fallback.
+        If DynamoDB encounters an error, deliberately FAILS OPEN to the in-memory
+        limiter, logging a warning rather than causing an unhandled service failure.
         """
         from app.core.config import get_settings
 
@@ -143,11 +158,15 @@ class DynamoDBRateLimiter:
                     headers={"Retry-After": str(retry_after)},
                 )
         except HTTPException:
+            # Re-raise explicit rate limit violations
             raise
         except Exception as exc:
+            # DELIBERATE FAIL-OPEN: Log warning and proceed to in-memory soft secondary limiter.
+            # Do NOT fail closed with 500 or drop requests, as API Gateway provides perimeter DDoS defense.
             logger.warning(
-                "DynamoDB rate limit check failed (%s); falling back to in-memory limiter",
+                "DynamoDB rate limit check failed (%s); FAILING OPEN to in-memory soft limiter for %s",
                 exc,
+                client_key,
             )
             self._in_memory_fallback.check(client_key)
 

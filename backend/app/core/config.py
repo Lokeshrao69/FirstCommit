@@ -17,15 +17,24 @@ class Settings:
         self.mock_llm: bool = env.get("MOCK_LLM", "false").lower() in {"1", "true", "yes"}
         self.demo_user_id: str = env.get("DEMO_USER_ID", "demo-user")
 
-        raw_origins = env.get("CORS_ORIGINS", '["http://localhost:5173"]')
-        try:
-            self.cors_origins: list[str] = json.loads(raw_origins)
-        except json.JSONDecodeError:
-            self.cors_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+        raw_origins = env.get("CORS_ORIGINS", "")
+        if raw_origins:
+            try:
+                self.cors_origins: list[str] = json.loads(raw_origins)
+            except json.JSONDecodeError:
+                self.cors_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+        else:
+            self.cors_origins = []
 
         frontend_domain = env.get("FRONTEND_DOMAIN", "").strip()
         if frontend_domain and frontend_domain not in self.cors_origins:
             self.cors_origins.append(frontend_domain)
+
+        # In non-production, include localhost defaults for local developer workflow
+        if self.environment != "production":
+            for dev_origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+                if dev_origin not in self.cors_origins:
+                    self.cors_origins.append(dev_origin)
 
         self.aws_region: str = env.get(
             "AWS_REGION",

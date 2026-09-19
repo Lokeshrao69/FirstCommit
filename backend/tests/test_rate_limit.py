@@ -147,3 +147,36 @@ def test_dynamodb_rate_limiter_uses_fallback_in_demo_mode(monkeypatch):
 
     with pytest.raises(HTTPException):
         limiter.check("10.0.0.3")
+
+
+def test_dynamodb_rate_limiter_explicit_fail_open_behavior(monkeypatch, caplog):
+    """Verify that when DynamoDB throws an error, the limiter deliberately FAILS OPEN.
+
+    It does NOT fail closed (no 500 error, no blanket rejection). It logs a warning
+    and permits legitimate requests to continue through to the local soft secondary.
+    """
+    import logging
+
+    monkeypatch.setattr(
+        "app.core.config.get_settings",
+        lambda: Settings({"DEMO_MODE": "false", "AWS_DYNAMODB_TABLE_RATE_LIMITS": "test-table"}),
+    )
+    mock_client = MagicMock()
+    mock_client.update_item.side_effect = Exception("ProvisionedThroughputExceededException")
+
+    limiter = DynamoDBRateLimiter(
+        endpoint_name="test_endpoint",
+        max_requests=5,
+        window_seconds=60,
+        table_name="test-table",
+        dynamodb_client=mock_client,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        # Request MUST succeed (fail-open) and NOT raise an unhandled exception or 500
+        limiter.check("192.168.1.100")
+
+    # Assert warning log was recorded
+    assert any("FAILING OPEN" in record.message for record in caplog.records)
+    assert any("ProvisionedThroughputExceededException" in record.message for record in caplog.records)
+

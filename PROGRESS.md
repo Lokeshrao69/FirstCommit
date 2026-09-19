@@ -269,10 +269,13 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   - Health check endpoint: standardized response format `{"status": "healthy", "service": "flowforge-api", "environment": ...}`.
   - `backend/main.py`: removed hardcoded `reload=True`; reload is now strictly tied to `settings.environment == "development"`.
 - **Infrastructure Hardening (`infrastructure/template.yaml`)**:
-  - `FrontendDomain`: replaced hardcoded `"https://flowforge.app"` placeholder with a configurable `FrontendDomain` SAM parameter (default `http://localhost:5173`, overridable for staging/production), passed as `FRONTEND_DOMAIN` to Lambda and wired to `CorsConfiguration.AllowOrigins`.
+  - `FrontendDomain`: replaced hardcoded `"https://flowforge.app"` placeholder with a configurable `FrontendDomain` SAM parameter (default `http://localhost:5173`, overridable for staging/production), passed as `FRONTEND_DOMAIN` to Lambda.
+  - `AllowOrigins` Conditional Guard: added `IsNotProduction` condition (`!Not [!Equals [!Ref Environment, "production"]]`) with `Fn::If` in `FlowForgeHttpApi` so that `http://localhost:5173` and `http://127.0.0.1:5173` are only permitted in non-production environments; production strictly permits `FrontendDomain`.
+  - Backend CORS guard: updated `backend/app/core/config.py` so localhost origins are omitted from `self.cors_origins` when `self.environment == "production"`.
   - `DocumentBucket`: S3 versioning upgraded from `Suspended` to `Enabled`.
   - CloudWatch Alarms: `AlarmTopic` SNS topic is now created unconditionally; CloudWatch Alarms (`LambdaErrorAlarm`, `LambdaThrottleAlarm`, `LambdaDurationAlarm`) are wired directly to `AlarmTopic`.
-  - Clean `samconfig.example.toml`: verified contains zero account IDs, ARNs, or secrets; added `FrontendDomain` to example parameter overrides.
+  - Clean `samconfig.example.toml`: verified contains zero account IDs, ARNs, or secrets; added region comments and `FrontendDomain` to example parameter overrides.
+  - Deployment Runbook: added comprehensive `docs/deployment-runbook.md` covering environment variables, step-by-step clean checkout to guided deployment, region consistency notes, Bedrock console access prerequisites, and live evaluation commands.
   - Local validation: passed `sam validate --lint` and `cfn-lint infrastructure/template.yaml` with **0 errors**.
 - **Frontend Production Build**:
   - Cleaned console and debugger invocations across `frontend/src`.
@@ -295,7 +298,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 6 | Workflow JSON schema | ✅ |
 | 7 | API contracts | ✅ `models/api.py` + routes |
 | 8 | Pydantic models | ✅ |
-| 9 | Deterministic state machine + tests | ✅ 66 tests pass (Chunks 13b, 14, 16) |
+| 9 | Deterministic state machine + tests | ✅ 67 tests pass (Chunks 13b, 14, 16) |
 | 10 | Mock workflow | ✅ `knowledge/scholarship_process.json` |
 | 11 | Mock API response | ✅ mock provider + in-memory repo + `services/mock.ts` (explicit opt-in only) |
 | 12 | Frontend graph against mock | ✅ (Chunks 10–12, build + lint green) |
@@ -303,7 +306,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 14 | Evaluation + test documents | ✅ measured (mock path, all targets pass) |
 | 15 | CI/CD | ✅ `.github/workflows/ci.yml` (backend + frontend + eval + infra) |
 | 16 | Infrastructure (SAM/Lambda/IAM) | ✅ Chunk 14 & 16 — complete SAM template (`sam validate --lint` clean) |
-| 17 | Production Hardening & Zero-Mock Audit | ✅ Chunk 16 — DynamoDB distributed rate limiter, perimeter throttling, configurable CORS, fail-fast AWS init |
+| 17 | Production Hardening & Zero-Mock Audit | ✅ Chunk 16 — DynamoDB rate limiter (fail-open), CORS environment guard, runbook, fail-fast AWS init |
 
 ## Known gaps / risks
 - **Live AWS verification blocked on credentials.** No AWS CLI or credentials are
