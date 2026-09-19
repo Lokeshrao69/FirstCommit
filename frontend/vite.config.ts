@@ -23,10 +23,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          react: ["react", "react-dom"],
+          vendor: ["react", "react-dom", "framer-motion", "@radix-ui/react-dialog", "@radix-ui/react-tooltip", "sonner", "lucide-react"],
           flow: ["@xyflow/react"],
-          motion: ["framer-motion"],
-          ui: ["@radix-ui/react-dialog", "@radix-ui/react-tooltip", "sonner", "lucide-react"],
         },
       },
     },

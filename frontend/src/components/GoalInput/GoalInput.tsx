@@ -39,16 +39,26 @@ export function GoalInput({ busy, disabled, onStart }: GoalInputProps) {
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
         className="text-center"
       >
-        <span className="chip chip-brand mx-auto">Agentic workflow engine</span>
-        <h1 className="mt-5 font-display text-[40px] leading-[1.05] tracking-[-0.01em] text-ink-950 sm:text-[56px]">
+        <div className="inline-flex items-center gap-2 rounded-full border border-brand-200/80 bg-brand-50/80 px-3 py-1 shadow-sm backdrop-blur-sm">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand-600 animate-pulse" />
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-700">
+            Agentic Orchestration Engine
+          </span>
+          <span className="h-3 w-px bg-brand-200" />
+          <span className="font-mono text-[10px] text-brand-600">v1.0.4</span>
+        </div>
+
+        <h1 className="mt-5 font-display text-[42px] leading-[1.05] tracking-[-0.015em] text-ink-950 sm:text-[60px]">
           From intent
           <span className="text-ink-400"> to </span>
-          <em className="not-italic text-brand-600">execution.</em>
+          <span className="bg-gradient-to-r from-brand-600 via-emerald-600 to-teal-500 bg-clip-text text-transparent">
+            execution.
+          </span>
         </h1>
-        <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-ink-500">
+        <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-ink-500 text-pretty">
           Describe what you want done. The model plans a workflow, a deterministic state machine
           runs it, and you approve every consequential step.
         </p>
@@ -122,17 +132,22 @@ export function GoalInput({ busy, disabled, onStart }: GoalInputProps) {
         variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.25 } } }}
         className="mt-10 grid gap-3 sm:grid-cols-3"
       >
-        {PILLARS.map(({ icon: Icon, title, body }) => (
+        {PILLARS.map(({ icon: Icon, title, body }, idx) => (
           <motion.li
             key={title}
             variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-            className="rounded-2xl border border-line bg-surface/70 p-4 text-left"
+            className="group relative rounded-2xl border border-line bg-surface/80 p-4 text-left shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-brand-300/80 hover:shadow-raised backdrop-blur-sm"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-50 text-brand-600">
-              <Icon size={15} />
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-50 text-brand-600 transition-colors group-hover:bg-brand-500 group-hover:text-white">
+                <Icon size={15} />
+              </span>
+              <span className="font-mono text-[9px] uppercase tracking-wider text-ink-400">
+                0{idx + 1} // CRITICAL
+              </span>
+            </div>
             <p className="mt-3 text-[13px] font-semibold text-ink-900">{title}</p>
-            <p className="mt-1 text-xs leading-relaxed text-ink-500">{body}</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-500 text-pretty">{body}</p>
           </motion.li>
         ))}
       </motion.ul>

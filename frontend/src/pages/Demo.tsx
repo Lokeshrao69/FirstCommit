@@ -23,6 +23,10 @@ import { useMediaQuery, BP } from "@/hooks/useMediaQuery";
 import { useWorkflow, type DemoPhase } from "@/hooks/useWorkflow";
 import { NEEDS_LABELS } from "@/types";
 import { cn } from "@/utils/cn";
+import { TelemetryHUD } from "@/components/HUD/TelemetryHUD";
+import { StatsTicker } from "@/components/Stats/StatsTicker";
+import { BotanicalBorder } from "@/components/Art/BotanicalBorder";
+import { HeroAtmosphere } from "@/components/Art/HeroAtmosphere";
 
 const PANEL_TABS: { id: "action" | "documents" | "activity"; label: string; icon: typeof Activity }[] = [
   { id: "action", label: "Action", icon: UserCheck },
@@ -42,6 +46,7 @@ export function Demo() {
   const [railOpen, setRailOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(true);
   const [tab, setTab] = useState<(typeof PANEL_TABS)[number]["id"]>("action");
+  const [hudOpen, setHudOpen] = useState(true);
   const [gateDismissed, setGateDismissed] = useState<string | null>(null);
 
   const gateVariant: "review" | "approval" | null =
@@ -166,6 +171,8 @@ export function Demo() {
           connection={connection}
           serverInfo={serverInfo}
           auditCount={audit.length}
+          hudOpen={hudOpen}
+          onToggleHud={() => setHudOpen((o) => !o)}
           onModeChange={handleModeChange}
           onAudit={() => setAuditOpen(true)}
           onRetryConnection={() => void checkHealth()}
@@ -174,15 +181,21 @@ export function Demo() {
 
         {phase === "goal" ? (
           <main className="slim-scroll relative flex-1 overflow-y-auto">
-            <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(#d3d7df_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_75%)]" />
-            <div className="relative mx-auto flex min-h-full max-w-5xl flex-col justify-center px-4 py-10 sm:px-6 sm:py-16">
-              <ErrorBanner error={error} onDismiss={dismissError} className="mx-auto mb-6 w-full max-w-3xl" />
-              <GoalInput busy={pending === "create"} disabled={mode === "live" && connection === "offline"} onStart={(g) => void start(g)} />
-              <div className="mt-6 lg:hidden">
-                <p className="text-center text-[11px] text-ink-400">API mode</p>
-                <div className="mt-2 flex justify-center">
-                  <ModeSwitchInline mode={mode} onChange={handleModeChange} />
+            <HeroAtmosphere />
+            <div className="relative mx-auto flex min-h-full max-w-5xl flex-col justify-between px-4 pt-10 pb-0 sm:px-6 sm:pt-14">
+              <div>
+                <ErrorBanner error={error} onDismiss={dismissError} className="mx-auto mb-6 w-full max-w-3xl" />
+                <GoalInput busy={pending === "create"} disabled={mode === "live" && connection === "offline"} onStart={(g) => void start(g)} />
+                <div className="mt-6 lg:hidden">
+                  <p className="text-center text-[11px] text-ink-400">API mode</p>
+                  <div className="mt-2 flex justify-center">
+                    <ModeSwitchInline mode={mode} onChange={handleModeChange} />
+                  </div>
                 </div>
+              </div>
+              <div className="mt-14 space-y-4">
+                <StatsTicker />
+                <BotanicalBorder />
               </div>
             </div>
           </main>
@@ -210,8 +223,24 @@ export function Demo() {
                     <span className="hidden truncate text-xs text-ink-500 sm:inline">· {detail.goal}</span>
                   )}
                 </div>
-                <span className="shrink-0 text-[11px] font-medium text-ink-700">{title}</span>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setHudOpen((o) => !o)}
+                    className="font-mono text-[10px] font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200 transition-colors"
+                  >
+                    {hudOpen ? "HIDE HUD" : "SHOW HUD"}
+                  </button>
+                  <span className="shrink-0 text-[11px] font-medium text-ink-700">{title}</span>
+                </div>
               </div>
+
+              <AnimatePresence>
+                {hudOpen && (
+                  <TelemetryHUD detail={detail} busy={busy} />
+                )}
+              </AnimatePresence>
+
               <div className="relative min-h-0 flex-1">
                 <WorkflowGraph detail={detail} loading={pending === "create"} />
               </div>
