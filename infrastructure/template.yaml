@@ -85,7 +85,9 @@ Resources:
       StageName: !Ref Environment
       CorsConfiguration:
         AllowOrigins:
-          - "*"
+          - "http://localhost:5173"
+          - "http://127.0.0.1:5173"
+          - "https://flowforge.app"
         AllowMethods:
           - GET
           - POST
@@ -123,7 +125,7 @@ Resources:
             ExpirationInDays: !Ref DocumentRetentionDays
 
       VersioningConfiguration:
-        Status: Suspended
+        Status: Enabled
 
       Tags:
         - Key: Project
@@ -431,15 +433,19 @@ Resources:
   # CLOUDWATCH ALARMS
   # ==========================================================
 
-  # Optional SNS topic for alarm notifications
+  # SNS topic for alarm notifications (unconditionally created)
   AlarmTopic:
     Type: AWS::SNS::Topic
-    Condition: HasAlarmEmail
     Properties:
       TopicName: !Sub "flowforge-${Environment}-alarms"
-      Subscription:
-        - Protocol: email
-          Endpoint: !Ref AlarmEmail
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
 
   LambdaErrorAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -456,10 +462,8 @@ Resources:
       Threshold: 5
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
-      AlarmActions: !If
-        - HasAlarmEmail
-        - [!Ref AlarmTopic]
-        - !Ref "AWS::NoValue"
+      AlarmActions:
+        - !Ref AlarmTopic
 
   LambdaThrottleAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -476,10 +480,8 @@ Resources:
       Threshold: 10
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
-      AlarmActions: !If
-        - HasAlarmEmail
-        - [!Ref AlarmTopic]
-        - !Ref "AWS::NoValue"
+      AlarmActions:
+        - !Ref AlarmTopic
 
   LambdaDurationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -499,10 +501,8 @@ Resources:
       Threshold: 25000
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
-      AlarmActions: !If
-        - HasAlarmEmail
-        - [!Ref AlarmTopic]
-        - !Ref "AWS::NoValue"
+      AlarmActions:
+        - !Ref AlarmTopic
 
 Outputs:
 

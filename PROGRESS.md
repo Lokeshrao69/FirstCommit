@@ -245,6 +245,37 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   - `evaluation/run_evaluation.py --provider bedrock` comparison against mock baseline
   - `sam deploy` to validate CloudFormation resource creation
   - End-to-end latency and accuracy measurement against a real foundation model
+## Chunk 16 — Production Hardening & Full Zero-Mock Audit
+**Status:** ✅ done (`61 passed`, `ruff` clean, `cfn-lint` clean, frontend build clean, evaluation `--strict` green)
+
+- **Zero-Mock & Silent-Fallback Audit**:
+  - `frontend/src/services/api.ts`: fixed `USE_MOCK` condition from `import.meta.env.VITE_USE_MOCK !== "false"` to `import.meta.env.VITE_USE_MOCK === "true"`. Frontend builds now default to the real `HttpApi` instead of silently routing to `MockApi`.
+  - `.env.example`: changed default `DEMO_MODE=false` (was `true`).
+  - `backend/app/core/config.py`: changed default `DEMO_MODE=false` (was `true`).
+  - `backend/conftest.py`: explicitly set default `DEMO_MODE="true"` during test execution to isolate in-memory test suites without requiring real AWS infrastructure.
+  - `backend/app/api/deps.py`: removed all silent `try...except Exception -> return Mock...` fallback blocks. In production (`DEMO_MODE=false`), any misconfigured or unreachable AWS resource (Bedrock, DynamoDB, S3, Textract) fails fast and loudly with clear initialization error traces rather than falling back to fake data.
+  - `backend/app/services/workflow_service.py`: restricted `DEMO_PROFILE` ("Alex Rivera") strictly to `demo_mode=True`. Missing profile records in production default cleanly to empty context (`{}`).
+- **Backend API Hardening**:
+  - `backend/app/core/rate_limit.py`: added in-memory thread-safe sliding window rate limiter with per-client IP tracking and automatic timestamp eviction.
+  - `backend/app/api/routes.py`: enforced rate limits on critical endpoints:
+    - `POST /workflows`: 20 requests / min
+    - `POST /workflows/{id}/documents`: 30 requests / min
+    - `POST /workflows/{id}/advance`: 60 requests / min
+  - `backend/tests/test_rate_limit.py`: added 3 comprehensive rate limiter test cases. Backend test suite now **61 passed**.
+  - Document upload route: MIME type and file size validation are now unconditional (removed `and not settings.demo_mode` bypass).
+  - Health check endpoint: standardized response format `{"status": "healthy", "service": "flowforge-api", "environment": ...}`.
+  - `backend/main.py`: removed hardcoded `reload=True`; reload is now strictly tied to `settings.environment == "development"`.
+- **Infrastructure Hardening (`infrastructure/template.yaml`)**:
+  - `DocumentBucket`: S3 versioning upgraded from `Suspended` to `Enabled`.
+  - `FlowForgeHttpApi`: locked down CORS `AllowOrigins` from open wildcard `*` to configured frontend origins (`http://localhost:5173`, `http://127.0.0.1:5173`, `https://flowforge.app`).
+  - CloudWatch Alarms: `AlarmTopic` SNS topic is now created unconditionally; CloudWatch Alarms (`LambdaErrorAlarm`, `LambdaThrottleAlarm`, `LambdaDurationAlarm`) are wired directly to `AlarmTopic`.
+  - Local validation: passed `cfn-lint infrastructure/template.yaml` with **0 errors**.
+- **Frontend Production Build**:
+  - Cleaned console and debugger invocations across `frontend/src`.
+  - `eslint .` passes with 0 errors.
+  - Production compilation (`tsc --noEmit && vite build`) passes cleanly, outputting production bundle in `dist/`.
+- **Evaluation**:
+  - `python evaluation/run_evaluation.py --strict` passes 100% across all 6 metrics.
 
 ---
 
@@ -254,36 +285,38 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | --- | --- | --- |
 | 1 | Inspect repo | ✅ empty, initialized |
 | 2 | Initialize structure | ✅ frontend+backend+infra+eval+docs |
-| 3 | README / ARCHITECTURE / .env.example | ✅ |
+| 3 | README / ARCHITECTURE / .env.example | ✅ hardened defaults (`DEMO_MODE=false`) |
 | 4 | Frontend scaffold | ✅ (Chunk 10) |
 | 5 | Backend scaffold | ✅ |
 | 6 | Workflow JSON schema | ✅ |
 | 7 | API contracts | ✅ `models/api.py` + routes |
 | 8 | Pydantic models | ✅ |
-| 9 | Deterministic state machine + tests | ✅ 58 tests pass (Chunks 13b & 14) |
+| 9 | Deterministic state machine + tests | ✅ 61 tests pass (Chunks 13b, 14, 16) |
 | 10 | Mock workflow | ✅ `knowledge/scholarship_process.json` |
-| 11 | Mock API response | ✅ mock provider + in-memory repo + `services/mock.ts` |
+| 11 | Mock API response | ✅ mock provider + in-memory repo + `services/mock.ts` (explicit opt-in only) |
 | 12 | Frontend graph against mock | ✅ (Chunks 10–12, build + lint green) |
 | 13 | Verify complete mock path | ✅ E2E scripted + live demo verified |
 | 14 | Evaluation + test documents | ✅ measured (mock path, all targets pass) |
 | 15 | CI/CD | ✅ `.github/workflows/ci.yml` (backend + frontend + eval + infra) |
-| 16 | Infrastructure (SAM/Lambda/IAM) | ✅ Chunk 14 — complete SAM template |
+| 16 | Infrastructure (SAM/Lambda/IAM) | ✅ Chunk 14 & 16 — complete SAM template (`cfn-lint` clean) |
+| 17 | Production Hardening & Zero-Mock Audit | ✅ Chunk 16 — rate limiting, CORS lockdown, fail-fast AWS init |
 
 ## Known gaps / risks
 - **Live AWS verification blocked on credentials.** No AWS CLI or credentials are
   available in the current workspace. The `DEMO_MODE=false` path (Bedrock, Textract,
-  S3, DynamoDB) is fully implemented but has not been exercised end-to-end. To verify:
-  configure AWS credentials with `bedrock:InvokeModel`, `textract:DetectDocumentText`,
-  S3 and DynamoDB access, then run `DEMO_MODE=false uvicorn main:app` and
-  `evaluation/run_evaluation.py --provider bedrock`.
+  S3, DynamoDB) is fully implemented and fails fast if AWS credentials are absent.
+  To verify against live AWS: configure AWS credentials with `bedrock:InvokeModel`,
+  `textract:DetectDocumentText`, S3 and DynamoDB access, then run `DEMO_MODE=false uvicorn main:app`
+  and `python evaluation/run_evaluation.py --provider bedrock`.
 - **Bedrock model accuracy is unmeasured.** Evaluation numbers in `docs/evaluation.md`
   describe the deterministic DEMO_MODE path (100% across all metrics). Real foundation
   model accuracy and latency will differ; run `--provider bedrock` to establish a
   baseline once credentials are available.
-- **SAM template not yet deployed.** The template is structurally complete and matches
-  the documented architecture. It should pass `sam validate --lint` and deploy cleanly
-  via `sam build && sam deploy`, but this has not been executed. First deployment should
-  use `--guided` mode with the `samconfig.example.toml` as a starting point.
-- Frontend built against the mock; interactive browser pass + wiring to live backend pending.
+- **SAM template not yet deployed.** The template is structurally complete, validated clean
+  with `cfn-lint`, and matches the documented architecture. Deploy with `sam build && sam deploy`
+  in `--guided` mode with `samconfig.example.toml` as a starting point.
+- **Production Rate Limiting Distributed Scaling.** Current sliding window rate limiter runs
+  in-memory in the FastAPI process. In multi-instance or high-concurrency Lambda environments,
+  consider upgrading to Redis or API Gateway Usage Plans for distributed rate enforcement.
 - DynamoDB Point-in-Time Recovery is enabled in staging/production templates; disable for
   cost savings in development if needed.

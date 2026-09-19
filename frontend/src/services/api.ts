@@ -24,7 +24,8 @@ export interface FlowForgeApi {
   listAudit(workflowId: string): Promise<AuditResponse>;
 }
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
+// Default to HttpApi against real backend; MockApi only when VITE_USE_MOCK="true"
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 export const API_BASE = (import.meta.env.VITE_API_BASE ?? "/api").replace(/\/$/, "");
 
 class HttpApi implements FlowForgeApi {

@@ -171,7 +171,8 @@ class WorkflowService:
         docs = self._repo.list_documents(workflow.workflow_id)
         collected = {d.classification: d for d in docs if d.classification}
         data: dict[str, Any] = dict(workflow.collected_data)
-        data["profile"] = data.get("profile") or DEMO_PROFILE
+        if not data.get("profile"):
+            data["profile"] = DEMO_PROFILE if self._settings.demo_mode else {}
         return ExecutionContext(data=data, collected_documents=collected, results={})
 
     def _build_handlers(self, workflow: Workflow) -> StepHandlerMap:

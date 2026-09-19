@@ -7,6 +7,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from ..core.rate_limit import (
+    document_upload_limiter,
+    rate_limit,
+    workflow_advance_limiter,
+    workflow_generation_limiter,
+)
 from ..models.api import (
     AdvanceWorkflowRequest,
     AdvanceWorkflowResponse,
@@ -51,7 +57,11 @@ def _http(e: Exception) -> HTTPException:
     return HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/workflows", response_model=CreateWorkflowResponse)
+@router.post(
+    "/workflows",
+    response_model=CreateWorkflowResponse,
+    dependencies=[Depends(rate_limit(workflow_generation_limiter))],
+)
 def create_workflow(
     req: CreateWorkflowRequest, services: Services = Depends(get_services)
 ) -> CreateWorkflowResponse:
@@ -76,7 +86,11 @@ def get_workflow(
     return services.workflow_service.to_detail(workflow)
 
 
-@router.post("/workflows/{workflow_id}/advance", response_model=AdvanceWorkflowResponse)
+@router.post(
+    "/workflows/{workflow_id}/advance",
+    response_model=AdvanceWorkflowResponse,
+    dependencies=[Depends(rate_limit(workflow_advance_limiter))],
+)
 def advance(
     workflow_id: str,
     req: AdvanceWorkflowRequest,
@@ -101,7 +115,11 @@ def advance(
     return AdvanceWorkflowResponse(**payload)
 
 
-@router.post("/workflows/{workflow_id}/documents", response_model=DocumentUploadResponse)
+@router.post(
+    "/workflows/{workflow_id}/documents",
+    response_model=DocumentUploadResponse,
+    dependencies=[Depends(rate_limit(document_upload_limiter))],
+)
 async def upload_document(
     workflow_id: str,
     file: UploadFile = File(...),
@@ -111,7 +129,7 @@ async def upload_document(
     limit = settings.max_document_size_mb * 1024 * 1024
     content = await _read_within_limit(file, limit)
     mime = file.content_type or "application/octet-stream"
-    if mime not in settings.allowed_mime_types and not settings.demo_mode:
+    if mime not in settings.allowed_mime_types:
         raise HTTPException(status_code=415, detail="unsupported file type")
 
     workflow = services.workflow_service.get_workflow(workflow_id)

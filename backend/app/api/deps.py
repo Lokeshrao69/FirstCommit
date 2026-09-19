@@ -61,41 +61,25 @@ class Services:
             )
             return MockLLMProvider()
 
-        try:
-            return BedrockProvider(self.settings)
-
-        except Exception as exc:  # noqa: BLE001 - fall back so the app still boots
-            logger.warning(
-                "BedrockProvider unavailable (%s); falling back to MockLLMProvider",
-                exc,
-            )
-            return MockLLMProvider()
+        return BedrockProvider(self.settings)
 
     def _build_repo(self) -> WorkflowRepository:
         if self.settings.demo_mode:
             return InMemoryRepository()
-        try:
-            return DynamoRepository(
-                table_workflows=self.settings.aws_ddb_workflows,
-                table_documents=self.settings.aws_ddb_documents,
-                table_audit=self.settings.aws_ddb_audit,
-                region=self.settings.aws_region,
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("DynamoRepository unavailable (%s); falling back to InMemoryRepository", exc)
-            return InMemoryRepository()
+        return DynamoRepository(
+            table_workflows=self.settings.aws_ddb_workflows,
+            table_documents=self.settings.aws_ddb_documents,
+            table_audit=self.settings.aws_ddb_audit,
+            region=self.settings.aws_region,
+        )
 
     def _build_documents(self):
         if self.settings.demo_mode:
             return MockObjectStore(), MockDocumentProcessor()
-        try:
-            return (
-                S3ObjectStore(self.settings.aws_s3_bucket, self.settings.aws_region),
-                TextractProcessor(self.settings.aws_region),
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("AWS document services unavailable (%s); falling back to mocks", exc)
-            return MockObjectStore(), MockDocumentProcessor()
+        return (
+            S3ObjectStore(self.settings.aws_s3_bucket, self.settings.aws_region),
+            TextractProcessor(self.settings.aws_region),
+        )
 
 
 @lru_cache
