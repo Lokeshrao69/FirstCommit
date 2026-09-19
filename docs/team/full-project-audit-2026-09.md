@@ -127,3 +127,79 @@ Not everything is a problem — these were checked and hold up:
 5. **F-1, F-2, F-3** — frontend persistence, mode-switch guard, contrast.
 6. **I-3, I-4, I-5, I-7** — CORS on the API, log-group ordering, metric filter, CI coverage.
 7. **D-1** and the rest of the docs.
+
+---
+
+## 8. Remediation & Verification Status (September 2026)
+
+All findings from this audit have been independently addressed, remediated, and verified in branch `complete-infrastructure-and-eval`:
+
+### Backend Remediation (`B-1` through `B-18`)
+| ID | Status | Resolution & Verification |
+| :--- | :---: | :--- |
+| **B-1** | **FIXED** | Pinned runtime CVEs resolved in `backend/requirements.txt`: `fastapi==0.141.1`, `starlette==1.6.0`, `python-multipart==0.0.32`, `pytest==9.1.1`. Zero vulnerabilities. |
+| **B-2** | **FIXED** | Added `python-dotenv` and loaded `_ENV_FILE` with `override=False` in `backend/app/core/config.py`. |
+| **B-3** | **FIXED** | Sort key set to `timestamp#event_id` with `ConditionExpression: attribute_not_exists(...)` in `backend/app/storage/dynamo.py`. |
+| **B-4** | **FIXED** | Implemented async Textract pipeline (`start_document_text_detection` + polling + pagination) for PDFs in `backend/app/documents/aws_processor.py`. |
+| **B-5** | **FIXED** | Escaped `<` and `>` inside document tags via `neutralize_delimiters` in `backend/app/ai/prompt_utils.py`. |
+| **B-6** | **FIXED** | Gated uploads with `_require_accepting_documents` in `backend/app/api/routes.py` (rejects inactive/terminal with HTTP 409). |
+| **B-7** | **FIXED** | Emitted `"planner": self._llm.name()` in `WORKFLOW_GENERATED` audit event details to explicitly flag mock vs. Bedrock plans. |
+| **B-8** | **FIXED** | Enforced MIME allow-list, magic byte sniffing, and non-empty checks (`400 Bad Request`) unconditionally in all modes. |
+| **B-9** | **FIXED** | Serialized floats as DynamoDB numeric strings `{"N": ...}` and restored as numeric types in `backend/app/storage/dynamo.py`. |
+| **B-10** | **FIXED** | Added pagination loops over `LastEvaluatedKey` for `list_documents` and `list_audit` in `backend/app/storage/dynamo.py`. |
+| **B-11** | **FIXED** | Merged `inputs.user_input` in `_build_context` so user GPA overrides propagate and transition GPA < 3.5 to `not_eligible`. |
+| **B-12** | **FIXED** | Added whitespace stripping and non-whitespace length validator in `CreateWorkflowRequest` (`backend/app/models/api.py`). |
+| **B-13** | **FIXED** | Persisted `submission_result` in `workflow.collected_data` and emitted `confirmation_id` in `execution` audit event. |
+| **B-14** | **FIXED** | Removed silent fallback in `backend/app/api/deps.py`: `ALLOW_MOCK_FALLBACK=false` fails fast with `ServiceConfigurationError`. |
+| **B-15** | **FIXED** | Bounded Bedrock retries to 2 attempts with exponential backoff (max 3s total sleep) inside Lambda timeout. |
+| **B-16** | **FIXED** | Stripped UTF-8 BOM bytes from all Python package files. |
+| **B-17** | **FIXED** | Documented `confirm` and `document_id` as reserved parameters in `AdvanceWorkflowRequest`. |
+| **B-18** | **FIXED** | Replaced import-time `get_services()` in `backend/main.py` with FastAPI `lifespan` context manager. |
+
+### Infrastructure Remediation (`I-1` through `I-10`)
+| ID | Status | Resolution & Verification |
+| :--- | :---: | :--- |
+| **I-1** | **FIXED** | Set `MOCK_LLM: false` and upgraded defaults to Claude Sonnet/Haiku 4.5 in `template.yaml` and `.github/workflows/cd.yml`. |
+| **I-2** | **FIXED** | IAM role in `template.yaml` updated with `s3:GetObject` on uploads, async Textract, DynamoDB CRUD+Query, and Bedrock inference profiles. |
+| **I-3** | **FIXED** | Added native `CorsConfiguration` to `FlowForgeHttpApi` in `template.yaml` with conditional staging/production allowlists. |
+| **I-4** | **FIXED** | Added explicit `DependsOn: FlowForgeApiLogGroup` to `FlowForgeApiFunction` to eliminate log group race condition. |
+| **I-5** | **FIXED** | Metric filter pattern updated to structured JSON: `{ $.event = "error" }`. |
+| **I-6** | **FIXED** | Added `expiresAt` TTL attribute and Point-in-Time Recovery on DynamoDB tables in `template.yaml`. |
+| **I-7** | **FIXED** | Updated `.github/workflows/ci.yml` to Node 22 and comprehensive pytest / ruff checks. |
+| **I-8** | **RESOLVED** | CI workflow tracked directly in repository branch `complete-infrastructure-and-eval`. |
+| **I-9** | **FIXED** | Documented stack region vs Bedrock region split in `docs/deployment-runbook.md` and `samconfig.example.toml`. |
+| **I-10** | **FIXED** | Configured `Tracing: PassThrough` in `template.yaml`. |
+
+### Evaluation Remediation (`E-1` through `E-3`)
+| ID | Status | Resolution & Verification |
+| :--- | :---: | :--- |
+| **E-1** | **FIXED** | Output and documentation explicitly labeled as `(deterministic pipeline verification)` under `DEMO_MODE=true`. |
+| **E-2** | **FIXED** | Added `git diff --exit-code evaluation/test_documents` to CI to catch test document fixture drift. |
+| **E-3** | **FIXED** | Documented sub-millisecond latencies as deterministic mock baseline benchmarks. |
+
+### Frontend Remediation (`F-1` through `F-13`)
+| ID | Status | Resolution & Verification |
+| :--- | :---: | :--- |
+| **F-1** | **FIXED** | URL state sync (`?workflow=wf_...`) and rehydration via `getWorkflow` and `listAudit` implemented in `useWorkflow.ts`. |
+| **F-2** | **FIXED** | Confirmation prompt guards switching API modes when a workflow run is active. |
+| **F-3** | **FIXED** | Contrast tokens darkened to pass WCAG AA (≥ 4.5:1 for body, ≥ 3.0:1 for large text and chips). |
+| **F-4** | **FIXED** | `resolveApiMode` treats URL parameters as per-load without writing to `localStorage`. |
+| **F-5** | **FIXED** | Document uploads set `busy: true` in `useWorkflow.ts`. |
+| **F-6** | **FIXED** | Connection state initializes cleanly to `"online"` when in mock mode. |
+| **F-7** | **FIXED** | Unclassified upload cards collapsed; breadcrumbs derive dynamically from goal. |
+| **F-8** | **FIXED** | React Flow attribution rendered visibly in `WorkflowGraph.tsx`. |
+| **F-9** | **FIXED** | Semantic `<h1>` and focus management provided on every screen step. |
+| **F-10** | **FIXED** | Optimized fonts and lazy-loaded modals to streamline production bundle. |
+| **F-11** | **AUDITED** | Frontend packages audited and clean of known vulnerabilities. |
+| **F-12** | **FIXED** | Generic input phase supported in UI state machine. |
+| **F-13** | **FIXED** | Toast effect keys managed with refs to prevent duplicate mount toasts in dev. |
+
+### Documentation Remediation (`D-1` through `D-5`)
+| ID | Status | Resolution & Verification |
+| :--- | :---: | :--- |
+| **D-1** | **FIXED** | Synchronized `PROGRESS.md` with complete evidence of all chunks and passes. |
+| **D-2** | **FIXED** | Verified `python-dotenv` loads `.env` accurately as documented in README. |
+| **D-3** | **FIXED** | Async PDF Textract capabilities and S3 handling documented in `docs/architecture.md`. |
+| **D-4** | **VERIFIED** | API reference in `docs/api-reference.md` reflects current OpenAPI models. |
+| **D-5** | **FIXED** | Responsive graph reflow marked complete. |
+
