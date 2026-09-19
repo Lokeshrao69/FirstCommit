@@ -14,7 +14,16 @@ import type {
   DocumentUploadResult,
   WorkflowDetail,
 } from "../types";
+import { ApiError } from "./errors";
+import { fetchJson } from "./http";
 import { mockApi } from "./mock";
+import {
+  normalizeAdvance,
+  normalizeAudit,
+  normalizeCreate,
+  normalizeDetail,
+  normalizeUpload,
+} from "./normalize";
 
 export interface FlowForgeApi {
   createWorkflow(goal: string): Promise<CreateWorkflowResult>;
@@ -28,58 +37,59 @@ export interface FlowForgeApi {
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 export const API_BASE = (import.meta.env.VITE_API_BASE ?? "/api").replace(/\/$/, "");
 
+const JSON_HEADERS = { "Content-Type": "application/json", Accept: "application/json" };
+
 class HttpApi implements FlowForgeApi {
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    let res: Response;
-    try {
-      res = await fetch(`${API_BASE}${path}`, init);
-    } catch {
-      throw new Error("Cannot reach the FlowForge backend.");
-    }
-    if (!res.ok) {
-      let detail = res.statusText;
-      try {
-        const body = (await res.json()) as { detail?: unknown };
-        if (typeof body.detail === "string") detail = body.detail;
-      } catch {
-        // fall back to status text
-      }
-      throw new Error(detail);
-    }
-    return (await res.json()) as T;
+  private url(path: string): string {
+    return `${API_BASE}${path}`;
   }
 
-  createWorkflow(goal: string): Promise<CreateWorkflowResult> {
-    return this.request("/workflows", {
+  async createWorkflow(goal: string): Promise<CreateWorkflowResult> {
+    const raw = await fetchJson<unknown>(this.url("/workflows"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: JSON_HEADERS,
       body: JSON.stringify({ goal }),
+      timeoutMs: 60_000,
     });
+    return normalizeCreate(raw);
   }
 
-  getWorkflow(workflowId: string): Promise<WorkflowDetail> {
-    return this.request(`/workflows/${workflowId}`);
+  async getWorkflow(workflowId: string): Promise<WorkflowDetail> {
+    const raw = await fetchJson<unknown>(this.url(`/workflows/${encodeURIComponent(workflowId)}`), {
+      headers: { Accept: "application/json" },
+      retries: 2,
+    });
+    return normalizeDetail(raw);
   }
 
-  advance(workflowId: string, req: AdvanceRequest): Promise<AdvanceResponse> {
-    return this.request(`/workflows/${workflowId}/advance`, {
+  async advance(workflowId: string, req: AdvanceRequest): Promise<AdvanceResponse> {
+    const raw = await fetchJson<unknown>(this.url(`/workflows/${encodeURIComponent(workflowId)}/advance`), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: JSON_HEADERS,
       body: JSON.stringify(req),
+      timeoutMs: 30_000,
     });
+    return normalizeAdvance(raw);
   }
 
-  uploadDocument(workflowId: string, file: File): Promise<DocumentUploadResult> {
+  async uploadDocument(workflowId: string, file: File): Promise<DocumentUploadResult> {
     const form = new FormData();
-    form.append("file", file);
-    return this.request(`/workflows/${workflowId}/documents`, {
+    form.append("file", file, file.name);
+    const raw = await fetchJson<unknown>(this.url(`/workflows/${encodeURIComponent(workflowId)}/documents`), {
       method: "POST",
       body: form,
+      headers: { Accept: "application/json" },
+      timeoutMs: 90_000,
     });
+    return normalizeUpload(raw);
   }
 
-  listAudit(workflowId: string): Promise<AuditResponse> {
-    return this.request(`/workflows/${workflowId}/audit`);
+  async listAudit(workflowId: string): Promise<AuditResponse> {
+    const raw = await fetchJson<unknown>(this.url(`/workflows/${encodeURIComponent(workflowId)}/audit`), {
+      headers: { Accept: "application/json" },
+      retries: 2,
+    });
+    return normalizeAudit(raw);
   }
 }
 
@@ -108,3 +118,5 @@ class MockApi implements FlowForgeApi {
 export function createApi(): FlowForgeApi {
   return USE_MOCK ? new MockApi() : new HttpApi();
 }
+
+export { ApiError };
