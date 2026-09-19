@@ -31,6 +31,12 @@ Parameters:
     Type: String
     Default: '["http://localhost:5173"]'
 
+  FrontendDomain:
+    Type: String
+    Default: "http://localhost:5173"
+    Description: >
+      Configured production/staging frontend origin allowed for CORS (e.g. https://app.example.com or http://localhost:5173).
+
   DocumentRetentionDays:
     Type: Number
     Default: 1
@@ -83,11 +89,14 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref Environment
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
       CorsConfiguration:
         AllowOrigins:
           - "http://localhost:5173"
           - "http://127.0.0.1:5173"
-          - "https://flowforge.app"
+          - !Ref FrontendDomain
         AllowMethods:
           - GET
           - POST
@@ -228,6 +237,29 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  RateLimitsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
+      Tags:
+        - Key: Project
+          Value: FlowForge
+        - Key: Environment
+          Value: !Ref Environment
+
   # ==========================================================
   # FASTAPI LAMBDA
   # ==========================================================
@@ -248,12 +280,14 @@ Resources:
           API_GATEWAY_BASE_PATH: !Sub "/${Environment}"
 
           CORS_ORIGINS: !Ref CorsOrigins
+          FRONTEND_DOMAIN: !Ref FrontendDomain
 
           AWS_S3_BUCKET: !Ref DocumentBucket
 
           AWS_DYNAMODB_TABLE_WORKFLOWS: !Ref WorkflowsTable
           AWS_DYNAMODB_TABLE_DOCUMENTS: !Ref DocumentsTable
           AWS_DYNAMODB_TABLE_AUDIT: !Ref AuditTable
+          AWS_DYNAMODB_TABLE_RATE_LIMITS: !Ref RateLimitsTable
 
           BEDROCK_REGION: !Ref BedrockRegion
           BEDROCK_MODEL_ID: !Ref BedrockModelId
@@ -313,6 +347,15 @@ Resources:
                 - dynamodb:PutItem
                 - dynamodb:Query
               Resource: !GetAtt AuditTable.Arn
+
+            - Sid: RateLimitsTableAccess
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource: !GetAtt RateLimitsTable.Arn
 
         # ----------------------------------------------------
         # TEXTRACT
@@ -526,6 +569,10 @@ Outputs:
   AuditTableName:
     Description: DynamoDB audit table
     Value: !Ref AuditTable
+
+  RateLimitsTableName:
+    Description: DynamoDB rate limits table with TTL
+    Value: !Ref RateLimitsTable
 
   LambdaFunctionName:
     Description: FlowForge API Lambda

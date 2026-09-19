@@ -255,21 +255,25 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   - `backend/conftest.py`: explicitly set default `DEMO_MODE="true"` during test execution to isolate in-memory test suites without requiring real AWS infrastructure.
   - `backend/app/api/deps.py`: removed all silent `try...except Exception -> return Mock...` fallback blocks. In production (`DEMO_MODE=false`), any misconfigured or unreachable AWS resource (Bedrock, DynamoDB, S3, Textract) fails fast and loudly with clear initialization error traces rather than falling back to fake data.
   - `backend/app/services/workflow_service.py`: restricted `DEMO_PROFILE` ("Alex Rivera") strictly to `demo_mode=True`. Missing profile records in production default cleanly to empty context (`{}`).
-- **Backend API Hardening**:
-  - `backend/app/core/rate_limit.py`: added in-memory thread-safe sliding window rate limiter with per-client IP tracking and automatic timestamp eviction.
-  - `backend/app/api/routes.py`: enforced rate limits on critical endpoints:
+- **Backend API Hardening & Distributed Rate Limiting**:
+  - `backend/app/core/rate_limit.py`: replaced single-process in-memory limiter with `DynamoDBRateLimiter` backed by DynamoDB `RateLimitsTable` using atomic `UpdateItem` (`ADD request_count :inc`) and native TTL auto-eviction (`expires_at`), preventing concurrency race conditions across serverless Lambda execution environments.
+  - Demoted `SlidingWindowRateLimiter` to a documented soft secondary fallback used in `DEMO_MODE`, offline local testing, or when DynamoDB is temporarily unreachable.
+  - `infrastructure/template.yaml`: added `RateLimitsTable` resource (PAY_PER_REQUEST, TTL on `expires_at`), granted IAM permissions (`GetItem`, `PutItem`, `UpdateItem`, `DeleteItem`), added `AWS_DYNAMODB_TABLE_RATE_LIMITS` environment variable, and added API Gateway `DefaultRouteSettings` with `ThrottlingBurstLimit: 100` and `ThrottlingRateLimit: 50` for perimeter throttling.
+  - Added unit test suite `backend/tests/test_lambda_handler.py` verifying Mangum wrapping FastAPI for API Gateway v2 HTTP events (66 total backend tests passing).
+  - Enforced rate limits on critical endpoints:
     - `POST /workflows`: 20 requests / min
     - `POST /workflows/{id}/documents`: 30 requests / min
     - `POST /workflows/{id}/advance`: 60 requests / min
-  - `backend/tests/test_rate_limit.py`: added 3 comprehensive rate limiter test cases. Backend test suite now **61 passed**.
+  - `backend/tests/test_rate_limit.py`: expanded test suite to test DynamoDB atomic increments, limit breaches, exception fallback, and demo mode.
   - Document upload route: MIME type and file size validation are now unconditional (removed `and not settings.demo_mode` bypass).
   - Health check endpoint: standardized response format `{"status": "healthy", "service": "flowforge-api", "environment": ...}`.
   - `backend/main.py`: removed hardcoded `reload=True`; reload is now strictly tied to `settings.environment == "development"`.
 - **Infrastructure Hardening (`infrastructure/template.yaml`)**:
+  - `FrontendDomain`: replaced hardcoded `"https://flowforge.app"` placeholder with a configurable `FrontendDomain` SAM parameter (default `http://localhost:5173`, overridable for staging/production), passed as `FRONTEND_DOMAIN` to Lambda and wired to `CorsConfiguration.AllowOrigins`.
   - `DocumentBucket`: S3 versioning upgraded from `Suspended` to `Enabled`.
-  - `FlowForgeHttpApi`: locked down CORS `AllowOrigins` from open wildcard `*` to configured frontend origins (`http://localhost:5173`, `http://127.0.0.1:5173`, `https://flowforge.app`).
   - CloudWatch Alarms: `AlarmTopic` SNS topic is now created unconditionally; CloudWatch Alarms (`LambdaErrorAlarm`, `LambdaThrottleAlarm`, `LambdaDurationAlarm`) are wired directly to `AlarmTopic`.
-  - Local validation: passed `cfn-lint infrastructure/template.yaml` with **0 errors**.
+  - Clean `samconfig.example.toml`: verified contains zero account IDs, ARNs, or secrets; added `FrontendDomain` to example parameter overrides.
+  - Local validation: passed `sam validate --lint` and `cfn-lint infrastructure/template.yaml` with **0 errors**.
 - **Frontend Production Build**:
   - Cleaned console and debugger invocations across `frontend/src`.
   - `eslint .` passes with 0 errors.
@@ -291,15 +295,15 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 6 | Workflow JSON schema | ✅ |
 | 7 | API contracts | ✅ `models/api.py` + routes |
 | 8 | Pydantic models | ✅ |
-| 9 | Deterministic state machine + tests | ✅ 61 tests pass (Chunks 13b, 14, 16) |
+| 9 | Deterministic state machine + tests | ✅ 66 tests pass (Chunks 13b, 14, 16) |
 | 10 | Mock workflow | ✅ `knowledge/scholarship_process.json` |
 | 11 | Mock API response | ✅ mock provider + in-memory repo + `services/mock.ts` (explicit opt-in only) |
 | 12 | Frontend graph against mock | ✅ (Chunks 10–12, build + lint green) |
 | 13 | Verify complete mock path | ✅ E2E scripted + live demo verified |
 | 14 | Evaluation + test documents | ✅ measured (mock path, all targets pass) |
 | 15 | CI/CD | ✅ `.github/workflows/ci.yml` (backend + frontend + eval + infra) |
-| 16 | Infrastructure (SAM/Lambda/IAM) | ✅ Chunk 14 & 16 — complete SAM template (`cfn-lint` clean) |
-| 17 | Production Hardening & Zero-Mock Audit | ✅ Chunk 16 — rate limiting, CORS lockdown, fail-fast AWS init |
+| 16 | Infrastructure (SAM/Lambda/IAM) | ✅ Chunk 14 & 16 — complete SAM template (`sam validate --lint` clean) |
+| 17 | Production Hardening & Zero-Mock Audit | ✅ Chunk 16 — DynamoDB distributed rate limiter, perimeter throttling, configurable CORS, fail-fast AWS init |
 
 ## Known gaps / risks
 - **Live AWS verification blocked on credentials.** No AWS CLI or credentials are
@@ -313,10 +317,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   model accuracy and latency will differ; run `--provider bedrock` to establish a
   baseline once credentials are available.
 - **SAM template not yet deployed.** The template is structurally complete, validated clean
-  with `cfn-lint`, and matches the documented architecture. Deploy with `sam build && sam deploy`
-  in `--guided` mode with `samconfig.example.toml` as a starting point.
-- **Production Rate Limiting Distributed Scaling.** Current sliding window rate limiter runs
-  in-memory in the FastAPI process. In multi-instance or high-concurrency Lambda environments,
-  consider upgrading to Redis or API Gateway Usage Plans for distributed rate enforcement.
+  with `sam validate --lint` and `cfn-lint`, and matches the documented architecture. Deploy with
+  `sam build && sam deploy` in `--guided` mode with `samconfig.example.toml` as a starting point.
 - DynamoDB Point-in-Time Recovery is enabled in staging/production templates; disable for
   cost savings in development if needed.

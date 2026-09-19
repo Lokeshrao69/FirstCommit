@@ -21,7 +21,11 @@ class Settings:
         try:
             self.cors_origins: list[str] = json.loads(raw_origins)
         except json.JSONDecodeError:
-            self.cors_origins = ["http://localhost:5173"]
+            self.cors_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+
+        frontend_domain = env.get("FRONTEND_DOMAIN", "").strip()
+        if frontend_domain and frontend_domain not in self.cors_origins:
+            self.cors_origins.append(frontend_domain)
 
         self.aws_region: str = env.get(
             "AWS_REGION",
@@ -47,6 +51,9 @@ class Settings:
             "AWS_DYNAMODB_TABLE_DOCUMENTS", "flowforge-documents"
         )
         self.aws_ddb_audit: str = env.get("AWS_DYNAMODB_TABLE_AUDIT", "flowforge-audit")
+        self.aws_ddb_rate_limits: str = env.get(
+            "AWS_DYNAMODB_TABLE_RATE_LIMITS", "flowforge-ratelimits"
+        )
 
         self.max_document_size_mb: int = int(env.get("MAX_DOCUMENT_SIZE_MB", "10"))
         raw_mime = env.get("ALLOWED_MIME_TYPES", '["application/pdf","image/png","image/jpeg"]')
