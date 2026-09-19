@@ -1,4 +1,4 @@
-import { Activity, Loader2, ScrollText, Server, Wifi, WifiOff } from "lucide-react";
+import { Loader2, ScrollText, Server, Wifi, WifiOff } from "lucide-react";
 import type { ApiMode } from "@/services/api";
 import type { Connection } from "@/hooks/useWorkflow";
 import type { WorkflowStatus } from "@/types";
@@ -15,8 +15,6 @@ interface HeaderProps {
   connection: Connection;
   serverInfo: { environment: string; demo_mode: boolean } | null;
   auditCount: number;
-  hudOpen?: boolean;
-  onToggleHud?: () => void;
   onModeChange: (mode: ApiMode) => void;
   onAudit: () => void;
   onRetryConnection: () => void;
@@ -123,14 +121,12 @@ export function Header({
   connection,
   serverInfo,
   auditCount,
-  hudOpen,
-  onToggleHud,
   onModeChange,
   onAudit,
   onRetryConnection,
 }: HeaderProps) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line/80 bg-surface/90 px-4 backdrop-blur-md sm:px-5 shadow-sm">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur-md sm:px-5 shadow-sm">
       <div className="flex min-w-0 shrink items-center gap-3">
         <Logo />
         <span className="hidden h-5 w-px bg-line lg:block" />
@@ -142,20 +138,6 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {onToggleHud && (
-          <Button
-            variant={hudOpen ? "dark" : "secondary"}
-            size="sm"
-            onClick={onToggleHud}
-            className={cn("gap-1.5 transition-all", hudOpen && "shadow-hud border-amber-500/50")}
-            title="Toggle Live Cyberpunk Telemetry HUD"
-          >
-            <Activity size={13} className={cn(hudOpen ? "text-amber-400" : "text-ink-500")} />
-            <span className="hidden sm:inline font-mono text-[11px] font-semibold">HUD</span>
-            <span className={cn("h-1.5 w-1.5 rounded-full", hudOpen ? "bg-amber-400 animate-ping" : "bg-ink-400")} />
-          </Button>
-        )}
-
         <div className="hidden lg:block">
           <ModeSwitch mode={mode} onChange={onModeChange} />
         </div>

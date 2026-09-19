@@ -26,21 +26,6 @@ export default {
         ok: { 50: "#eefbf3", 100: "#d6f5e2", 500: "#16a34a", 600: "#15803d" },
         warn: { 50: "#fff8eb", 100: "#feefc7", 500: "#e0910a", 600: "#b87400" },
         err: { 50: "#fef2f2", 100: "#fde3e3", 500: "#dc2626", 600: "#b91c1c" },
-        cyber: {
-          dark: "#080b11",
-          card: "#0e131f",
-          line: "#1e293b",
-          amber: "#f59e0b",
-          neon: "#a855f7",
-          cyan: "#06b6d4",
-          emerald: "#10b981",
-        },
-        luxury: {
-          black: "#0c0d10",
-          card: "#14161c",
-          border: "#232733",
-          muted: "#737a8c",
-        },
       },
       transitionTimingFunction: {
         spring: "cubic-bezier(0.32, 0.72, 0, 1)",
@@ -56,7 +41,6 @@ export default {
         pop: "0 24px 60px -20px rgba(16,24,40,0.28), 0 8px 20px -10px rgba(16,24,40,0.12)",
         focus: "0 0 0 4px rgba(18,160,143,0.18)",
         glow: "0 0 24px -4px rgba(18,160,143,0.25)",
-        hud: "0 0 20px -2px rgba(245,158,11,0.15)",
       },
       keyframes: {
         "fade-up": {
@@ -71,10 +55,6 @@ export default {
         shimmer: {
           "0%": { backgroundPosition: "200% 0" },
           "100%": { backgroundPosition: "-200% 0" },
-        },
-        "hazard-scroll": {
-          "0%": { backgroundPosition: "0 0" },
-          "100%": { backgroundPosition: "24px 0" },
         },
         "pulse-glow": {
           "0%, 100%": { opacity: "0.4", transform: "scale(1)" },
@@ -112,7 +92,6 @@ export default {
         "fade-up": "fade-up 0.35s ease-out both",
         "pulse-ring": "pulse-ring 1.8s ease-out infinite",
         shimmer: "shimmer 1.6s linear infinite",
-        hazard: "hazard-scroll 1.2s linear infinite",
         "pulse-glow": "pulse-glow 3.5s ease-in-out infinite",
         "overlay-in": "overlay-in 180ms ease-out",
         "overlay-out": "overlay-out 150ms ease-in forwards",

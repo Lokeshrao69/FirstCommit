@@ -96,38 +96,17 @@
     background: transparent;
   }
 
-  /* Cyber & Luxury HUD primitives */
-  .bg-cyber-grid {
+  /* Architectural grid and dot matrix patterns */
+  .bg-grid-pattern {
+    background-size: 32px 32px;
     background-image: 
-      linear-gradient(to right, rgba(18, 160, 143, 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(18, 160, 143, 0.06) 1px, transparent 1px);
-    background-size: 28px 28px;
+      linear-gradient(to right, rgba(18, 26, 43, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(18, 26, 43, 0.08) 1px, transparent 1px);
   }
 
   .bg-dot-matrix {
-    background-image: radial-gradient(rgba(18, 26, 43, 0.12) 1px, transparent 1px);
     background-size: 20px 20px;
-  }
-
-  .hud-card {
-    @apply rounded-xl border border-slate-800/80 bg-[#090d16]/95 text-slate-100 backdrop-blur-md;
-    box-shadow: 0 0 20px -2px rgba(245, 158, 11, 0.15);
-  }
-
-  .hud-label {
-    @apply font-mono text-[11px] font-semibold uppercase tracking-wider text-amber-500;
-  }
-
-  .hazard-bar {
-    background: repeating-linear-gradient(
-      -45deg,
-      rgba(245, 158, 11, 0.85),
-      rgba(245, 158, 11, 0.85) 6px,
-      rgba(30, 41, 59, 0.85) 6px,
-      rgba(30, 41, 59, 0.85) 12px
-    );
-    background-size: 24px 24px;
-    animation: hazard-scroll 1.2s linear infinite;
+    background-image: radial-gradient(rgba(18, 26, 43, 0.16) 1.2px, transparent 1.2px);
   }
 }
 
