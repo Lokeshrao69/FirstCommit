@@ -132,7 +132,31 @@ Not everything is a problem — these were checked and hold up:
 
 ## 8. Remediation & Verification Status (September 2026)
 
-All findings from this audit have been independently addressed, remediated, and verified in branch `complete-infrastructure-and-eval`:
+All documented audit findings within the current project scope have been remediated and independently verified. The remaining limitations are explicitly documented architectural and deployment boundaries, including unauthenticated POC operation and the lack of live AWS cloud verification.
+
+### Architectural & Deployment Limitations
+
+#### 1. Unauthenticated API / No Tenant Isolation (Single-Tenant POC Scope)
+- **Current POC Behavior:** The API endpoints (`/workflows`, `/workflows/{id}`, `/workflows/{id}/advance`, `/workflows/{id}/documents`) operate without an authentication or authorization layer (no Cognito, OIDC, or JWT authorizer). Access is governed solely by the entropy of 12-character hexadecimal UUIDs (`wf_<12 hex>`) and perimeter rate limiting (60 rpm/IP).
+- **Why It Is Acceptable for Current Scope:** FlowForge is explicitly designed as an anonymous, single-tenant proof-of-concept and guided demo workflow engine. All demo scenarios use fictional data and simulated submissions.
+- **Production Multi-Tenant Requirements:** Production multi-tenant deployment strictly requires:
+  1. API Gateway Cognito User Pool or OIDC authorizer validating user JWTs;
+  2. Identity propagation storing `owner_id` / `tenant_id` on all workflow and document records;
+  3. Strict authorization enforcement verifying `workflow.owner_id == request.user_id`;
+  4. Partition key isolation in DynamoDB (`tenant_id#workflow_id`) and object prefix segregation in S3 (`uploads/{tenant_id}/{workflow_id}/...`);
+  5. Role-based access control (RBAC) separating applicants from human reviewers.
+
+#### 2. Live AWS Services Not Live-Tested
+- **Unverified Against Live AWS Infrastructure:**
+  - **Amazon Bedrock:** Model IDs (`anthropic.claude-sonnet-4-5-20250929-v1:0` / `anthropic.claude-haiku-4-5-20251001-v1:0`), prompt formatting, and backoff retries are structured for Bedrock, but have not been invoked against live Bedrock endpoints with active AWS subscriptions in this workspace.
+  - **Amazon Textract:** S3 URI parsing, synchronous detection, and asynchronous polling are implemented, but have not been executed against live AWS Textract.
+  - **Amazon DynamoDB:** Serialization, TTL attributes, PITR, and composite keys are verified locally with mock clients and unit tests, but not provisioned on live DynamoDB tables.
+  - **Amazon S3:** Bucket policies, encryption, and object key sanitization are verified via unit tests and SAM validation, but not against live AWS S3 buckets.
+  - **Amazon API Gateway & AWS Lambda:** Mangum wrapping and HTTP API routes are verified locally, but have not executed within live AWS Lambda runtime containers behind live API Gateway endpoints.
+  - **Amazon CloudWatch:** JSON metric filter patterns and alarm thresholds are validated via `cfn-lint`, but have not processed live CloudWatch telemetry.
+- **Verification Boundary:** Local test suites (143 pytest tests), static linters (`ruff`, `cfn-lint`), SAM template validation (`sam validate --lint`), and deterministic evaluation runs (`evaluation/run_evaluation.py`) verify code correctness and schema contracts, but do **not** equal live AWS cloud deployment verification.
+
+### Remediated Findings Matrix
 
 ### Backend Remediation (`B-1` through `B-18`)
 | ID | Status | Resolution & Verification |
