@@ -114,13 +114,24 @@ in-memory repository and mock providers. See `docs/ai-architecture.md`.
 ## Data model (DynamoDB logical tables)
 
 ```
-Workflows   PK: workflowId            userId, goal, status, currentState, states,
+Workflows   PK: workflowId                    goal, status, currentState, states,
                                       collectedData, createdAt, updatedAt
-Documents   PK: workflowId / SK: documentId
-                                      s3Key, filename, mimeType, classification,
+Documents   PK: workflowId / SK: documentId   s3Key, filename, mimeType, classification,
                                       classificationConfidence, extractedFields,
                                       validationStatus, validationIssues,
                                       uploadedAt, processedAt
-AuditLog    PK: workflowId / SK: timestamp
-                                      eventType, fromState, toState, confidence, details
+AuditLog    PK: workflowId / SK: timestamp    eventId, eventType, fromState, toState,
+                                      confidence, details
 ```
+
+## Architectural limitations & security boundaries
+
+- **Single-tenant / Prototype scope:** FlowForge is implemented as an anonymous, single-tenant proof-of-concept and guided demonstration system.
+- **Authentication & authorization:** There is currently no user identity, Cognito/OIDC/JWT authorizer, or multi-tenant `owner_id` isolation. Workflows are accessed via opaque 12-character hexadecimal UUIDs (`wf_<12 hex>`). Anyone possessing a valid workflow ID can view, advance, or upload documents to that workflow.
+- **Production multi-tenancy requirements:** Deploying FlowForge as a multi-tenant production service strictly requires adding:
+  1. An API Gateway JWT / Cognito User Pool Authorizer;
+  2. Authenticated user identity propagation into `Workflow` and `DocumentRecord` models;
+  3. Strict owner authorization checks on all `/workflows/{id}/*` routes (`owner_id == authenticated_user`);
+  4. Tenant-isolated DynamoDB partition keys and S3 object prefixes;
+  5. Role-based access control (RBAC) separating applicants from human reviewers.
+- **Verification boundary:** The 100% metrics in `evaluation/` verify deterministic pipeline mechanics and schema compliance under `DEMO_MODE=true`. They do not claim live Bedrock or Textract accuracy benchmarks, which require live cloud AWS deployment with active model subscriptions.

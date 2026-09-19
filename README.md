@@ -95,6 +95,13 @@ exist behind the same interfaces and are used when AWS credentials are available
 - `evaluation/` — ground-truth datasets and evaluation scripts
 - `docs/` — architecture, AI, workflow-engine, API and evaluation notes
 
+## Architectural limitations & security boundaries
+
+FlowForge is designed and implemented as an **anonymous, single-tenant proof-of-concept / demo workflow engine**. To prevent misinterpretation of its security boundaries:
+
+1. **Access Control & Multi-Tenancy:** Workflows and documents are keyed by high-entropy UUIDs (`wf_<12 hex>`). The API does **not** feature user authentication (Cognito/JWT/OIDC) or user-level ownership isolation (`owner_id`). Production multi-tenant adoption strictly requires provisioning an API Gateway authorizer, user-level tenancy partitions in DynamoDB and S3, and role-based access control.
+2. **Deterministic Evaluation vs. Live AWS:** The test suite and evaluation metrics (`evaluation/run_evaluation.py`) evaluate the deterministic pipeline mechanics and schema compliance under `DEMO_MODE=true`. They do not claim live Bedrock or Textract accuracy benchmarks, which require live AWS deployment and active model subscriptions.
+
 ## Definition of done
 
 The project is complete when this full path works end to end:
