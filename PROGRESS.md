@@ -276,6 +276,10 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
   - CloudWatch Alarms: `AlarmTopic` SNS topic is now created unconditionally; CloudWatch Alarms (`LambdaErrorAlarm`, `LambdaThrottleAlarm`, `LambdaDurationAlarm`) are wired directly to `AlarmTopic`.
   - Clean `samconfig.example.toml`: verified contains zero account IDs, ARNs, or secrets; added region comments and `FrontendDomain` to example parameter overrides.
   - Deployment Runbook: added comprehensive `docs/deployment-runbook.md` covering environment variables, step-by-step clean checkout to guided deployment, region consistency notes, Bedrock console access prerequisites, and live evaluation commands.
+  - Bedrock Model Catalog Upgrade: upgraded default model IDs from deprecated Claude 3.5 snapshots to current Claude 4.5 generation:
+    - Primary (`BEDROCK_MODEL_ID`): `anthropic.claude-sonnet-4-5-20250929-v1:0`
+    - Fast/Extraction (`BEDROCK_FAST_MODEL_ID`): `anthropic.claude-haiku-4-5-20251001-v1:0`
+    - Verified complete elimination of deprecated `claude-3-5` strings across all config, documentation, templates, and code.
   - Local validation: passed `sam validate --lint` and `cfn-lint infrastructure/template.yaml` with **0 errors**.
 - **Frontend Production Build**:
   - Cleaned console and debugger invocations across `frontend/src`.

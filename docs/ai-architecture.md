@@ -47,8 +47,8 @@ documented fallback when Bedrock is unavailable.
 
 | Component | Model | Rationale |
 | --- | --- | --- |
-| Planning + cross-validation | `BEDROCK_MODEL_ID` (Claude 3.5 Sonnet) | Higher-reasoning tasks |
-| Classification + extraction | `BEDROCK_FAST_MODEL_ID` (Claude 3.5 Haiku) | High-volume, low-latency |
+| Planning + cross-validation | `BEDROCK_MODEL_ID` (Claude Sonnet 4.5) | Higher-reasoning tasks |
+| Classification + extraction | `BEDROCK_FAST_MODEL_ID` (Claude Haiku 4.5) | High-volume, low-latency |
 | `temperature` | `0.2` | Determinism-oriented |
 
 Throttling (`ThrottlingException` / `ThrottledException`) is retried with exponential

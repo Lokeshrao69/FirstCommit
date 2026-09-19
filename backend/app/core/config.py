@@ -42,10 +42,10 @@ class Settings:
         )
         self.bedrock_region: str = env.get("BEDROCK_REGION", "us-east-1")
         self.bedrock_model_id: str = env.get(
-            "BEDROCK_MODEL_ID", "anthropic.claude-3-5-sonnet-20240620-v1:0"
+            "BEDROCK_MODEL_ID", "anthropic.claude-sonnet-4-5-20250929-v1:0"
         )
         self.bedrock_fast_model_id: str = env.get(
-            "BEDROCK_FAST_MODEL_ID", "anthropic.claude-3-5-haiku-20241022-v1:0"
+            "BEDROCK_FAST_MODEL_ID", "anthropic.claude-haiku-4-5-20251001-v1:0"
         )
         self.bedrock_max_retries: int = int(env.get("BEDROCK_MAX_RETRIES", "3"))
         self.bedrock_retry_base_seconds: float = float(

@@ -14,8 +14,8 @@ When running the application with `DEMO_MODE=false`, the backend reads configura
 | `ENVIRONMENT` | **Yes** | `development` | Deployment environment: `development`, `staging`, or `production`. In `production`, CORS restricts access strictly to `FRONTEND_DOMAIN`. |
 | `AWS_REGION` | **Yes** | `us-east-1` | AWS region where primary application resources (S3, DynamoDB, Lambda, API Gateway) are provisioned. |
 | `BEDROCK_REGION` | **Yes** | `us-east-1` | AWS region where Amazon Bedrock foundation models are invoked. *(See Section 2 on Region Consistency).* |
-| `BEDROCK_MODEL_ID` | No | `anthropic.claude-3-5-sonnet-20240620-v1:0` | Primary foundation model ID for workflow generation, cross-validation, and conflict detection. |
-| `BEDROCK_FAST_MODEL_ID` | No | `anthropic.claude-3-5-haiku-20241022-v1:0` | Low-latency model ID for rapid classification and extraction. |
+| `BEDROCK_MODEL_ID` | No | `anthropic.claude-sonnet-4-5-20250929-v1:0` | Primary foundation model ID for workflow generation, cross-validation, and conflict detection (Claude Sonnet 4.5). |
+| `BEDROCK_FAST_MODEL_ID` | No | `anthropic.claude-haiku-4-5-20251001-v1:0` | Low-latency model ID for rapid classification and extraction (Claude Haiku 4.5). |
 | `MOCK_LLM` | No | `false` | When `true`, runs against live AWS S3, Textract, and DynamoDB, but substitutes mock AI completions. Useful for smoke-testing infrastructure before Bedrock access is approved. |
 | `FRONTEND_DOMAIN` | **Yes** | `http://localhost:5173` | Allowed web origin for CORS in staging/production (e.g. `https://app.yourdomain.com`). |
 | `CORS_ORIGINS` | No | `[]` | Optional JSON array or comma-separated list of additional origins to whitelist. |
@@ -49,8 +49,8 @@ FlowForge allows you to deploy serverless infrastructure (Lambda, API Gateway, S
 > 3. Navigate to **Amazon Bedrock** &rarr; **Model access** (in the left sidebar).
 > 4. Click **Modify model access**.
 > 5. Enable the models configured in your deployment:
->    - **Anthropic Claude 3.5 Sonnet** (`anthropic.claude-3-5-sonnet-20240620-v1:0`)
->    - **Anthropic Claude 3.5 Haiku** (`anthropic.claude-3-5-haiku-20241022-v1:0`)
+>    - **Anthropic Claude Sonnet 4.5** (`anthropic.claude-sonnet-4-5-20250929-v1:0`)
+>    - **Anthropic Claude Haiku 4.5** (`anthropic.claude-haiku-4-5-20251001-v1:0`)
 >    - *(Optional)* **Amazon Nova Lite** (`amazon.nova-lite-v1:0` / `global.amazon.nova-2-lite-v1:0`)
 > 6. Submit the request and wait until the status displays **Access granted**.
 >
@@ -102,8 +102,8 @@ Stack Name [flowforge-staging]: flowforge-staging
 AWS Region [ap-south-1]: ap-south-1
 Parameter Environment [staging]: staging
 Parameter BedrockRegion [us-east-1]: us-east-1
-Parameter BedrockModelId [anthropic.claude-3-5-sonnet-20240620-v1:0]: anthropic.claude-3-5-sonnet-20240620-v1:0
-Parameter BedrockFastModelId [anthropic.claude-3-5-haiku-20241022-v1:0]: anthropic.claude-3-5-haiku-20241022-v1:0
+Parameter BedrockModelId [anthropic.claude-sonnet-4-5-20250929-v1:0]: anthropic.claude-sonnet-4-5-20250929-v1:0
+Parameter BedrockFastModelId [anthropic.claude-haiku-4-5-20251001-v1:0]: anthropic.claude-haiku-4-5-20251001-v1:0
 Parameter CorsOrigins [["http://localhost:5173"]]: ["http://localhost:5173"]
 Parameter FrontendDomain [http://localhost:5173]: https://app.yourdomain.com
 Parameter DocumentRetentionDays [1]: 1
@@ -224,8 +224,8 @@ Export the credentials and region for Amazon Bedrock:
 export DEMO_MODE=false
 export AWS_REGION=ap-south-1
 export BEDROCK_REGION=us-east-1
-export BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20240620-v1:0
-export BEDROCK_FAST_MODEL_ID=anthropic.claude-3-5-haiku-20241022-v1:0
+export BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-5-20250929-v1:0
+export BEDROCK_FAST_MODEL_ID=anthropic.claude-haiku-4-5-20251001-v1:0
 export AWS_S3_BUCKET=<YourDeployedBucketName>
 ```
 
@@ -237,7 +237,7 @@ python evaluation/run_evaluation.py --provider bedrock --strict
 
 ### Expected Output Format
 ```
-FlowForge evaluation — provider: bedrock (model: anthropic.claude-3-5-sonnet-20240620-v1:0)
+FlowForge evaluation — provider: bedrock (model: anthropic.claude-sonnet-4-5-20250929-v1:0)
 ==============================================================================
 metric                                   value      target  samples  status
 ------------------------------------------------------------------------------
