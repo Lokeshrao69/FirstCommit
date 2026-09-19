@@ -298,7 +298,8 @@ def _build_components(provider_name: str) -> tuple[Any, Any, Settings]:
 
 
 def _print_report(metrics: list[Metric], provider_name: str) -> None:
-    print(f"\nFlowForge evaluation — provider: {provider_name}")
+    qualifier = " (deterministic pipeline verification)" if provider_name == "mock" else " (live model benchmark)"
+    print(f"\nFlowForge evaluation — provider: {provider_name}{qualifier}")
     print("=" * 78)
     print(f"{'metric':<34}{'value':>12}{'target':>12}{'samples':>9}  status")
     print("-" * 78)

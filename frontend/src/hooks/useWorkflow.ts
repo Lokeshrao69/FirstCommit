@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createApi, type FlowForgeApi } from "@/services/api";
 import type {
   AdvanceRequest,
@@ -78,6 +78,17 @@ function mergeAudit(lists: (AuditEvent[] | undefined)[]): AuditEvent[] {
   return [...map.values()].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 }
 
+function syncWorkflowParam(workflowId: string | null) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (workflowId) {
+    url.searchParams.set("workflow", workflowId);
+  } else {
+    url.searchParams.delete("workflow");
+  }
+  window.history.replaceState({}, "", url.toString());
+}
+
 export function useWorkflow() {
   const [api] = useState<FlowForgeApi>(() => createApi());
   const [state, setState] = useState<WorkflowHookState>(initialState);
@@ -94,6 +105,43 @@ export function useWorkflow() {
     [api],
   );
 
+  // Rehydrate workflow from URL param on initial load if present
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const wid = new URLSearchParams(window.location.search).get("workflow");
+    if (!wid) return;
+
+    let active = true;
+    setState((prev) => ({ ...prev, busy: true, error: null }));
+
+    Promise.all([api.getWorkflow(wid), refreshAudit(wid)])
+      .then(([detail, events]) => {
+        if (!active) return;
+        const phase = phaseFor(detail, false);
+        setState((prev) => ({
+          ...prev,
+          workflowId: wid,
+          detail,
+          audit: events,
+          phase,
+          doneStatus: detail.status !== "in_progress" ? detail.status : null,
+          confirmationId: detail.submission?.confirmation_id,
+          lastGoal: detail.goal,
+          busy: false,
+          error: null,
+        }));
+      })
+      .catch((err) => {
+        if (!active) return;
+        syncWorkflowParam(null);
+        setState((prev) => ({ ...prev, busy: false, error: toMessage(err) }));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [api, refreshAudit]);
+
   /** Create the plan only. The user reviews it before it is started. */
   const start = useCallback(
     async (goal: string): Promise<DemoPhase> => {
@@ -101,6 +149,7 @@ export function useWorkflow() {
       try {
         const created = await api.createWorkflow(goal);
         const events = await refreshAudit(created.workflow_id);
+        syncWorkflowParam(created.workflow_id);
         setState((prev) => ({
           ...prev,
           workflowId: created.workflow_id,
@@ -211,6 +260,7 @@ export function useWorkflow() {
 
   /** Return to the goal screen, keeping the previous goal for prefill. */
   const editGoal = useCallback((): DemoPhase => {
+    syncWorkflowParam(null);
     setState((prev) => ({
       ...prev,
       workflowId: null,
@@ -233,7 +283,10 @@ export function useWorkflow() {
     setState((prev) => ({ ...prev, audit: mergeAudit([prev.audit, events]) }));
   }, [refreshAudit, state.workflowId]);
 
-  const clear = useCallback(() => setState({ ...initialState }), []);
+  const clear = useCallback(() => {
+    syncWorkflowParam(null);
+    setState({ ...initialState });
+  }, []);
 
   return {
     state,

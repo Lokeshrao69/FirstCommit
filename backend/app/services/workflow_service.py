@@ -94,7 +94,7 @@ class WorkflowService:
             AuditEvent(
                 workflow_id=workflow_id,
                 event_type=AuditEventType.WORKFLOW_GENERATED,
-                details={"states": len(workflow.states)},
+                details={"states": len(workflow.states), "planner": self._llm.name()},
             )
         )
         self._repo.save_workflow(workflow)
@@ -154,7 +154,7 @@ class WorkflowService:
         workflow = self._repo.get_workflow(workflow_id)
         if workflow is None:
             raise WorkflowNotFound(f"workflow '{workflow_id}' not found")
-        ctx = self._build_context(workflow)
+        ctx = self._build_context(workflow, inputs)
         handlers = self._build_handlers(workflow)
         result = advance_workflow(workflow, handlers, ctx, inputs)
         validation_result = ctx.results.get(_validation_state_id(workflow))
@@ -216,10 +216,29 @@ class WorkflowService:
 
     # ------------------------------------------------------------- internals
 
-    def _build_context(self, workflow: Workflow) -> ExecutionContext:
+    def _build_context(
+        self, workflow: Workflow, inputs: Optional[AdvanceWorkflowRequest] = None
+    ) -> ExecutionContext:
         docs = self._repo.list_documents(workflow.workflow_id)
         collected = {d.classification: d for d in docs if d.classification}
         data: dict[str, Any] = dict(workflow.collected_data)
+
+        if inputs and inputs.user_input:
+            if "profile" in inputs.user_input and isinstance(inputs.user_input["profile"], dict):
+                data["profile"] = {**data.get("profile", {}), **inputs.user_input["profile"]}
+            else:
+                profile_fields = {
+                    "cumulative_gpa",
+                    "current_semester_gpa",
+                    "enrollment_status",
+                    "expected_graduation",
+                }
+                provided = {k: v for k, v in inputs.user_input.items() if k in profile_fields}
+                if provided:
+                    data["profile"] = {**data.get("profile", {}), **provided}
+            if "profile" in data:
+                workflow.collected_data["profile"] = data["profile"]
+
         if not data.get("profile"):
             data["profile"] = DEMO_PROFILE if self._settings.demo_mode else {}
         return ExecutionContext(data=data, collected_documents=collected, results={})

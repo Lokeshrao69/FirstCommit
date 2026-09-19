@@ -78,7 +78,7 @@ Globals:
     Runtime: python3.12
     MemorySize: 1024
     Timeout: 30
-    Tracing: Active
+    Tracing: PassThrough
 
 Resources:
 
@@ -301,7 +301,9 @@ Resources:
 
   FlowForgeApiFunction:
     Type: AWS::Serverless::Function
+    DependsOn: FlowForgeApiLogGroup
     Properties:
+      FunctionName: !Sub "flowforge-${Environment}-api"
       CodeUri: ../backend/
       Handler: lambda_handler.lambda_handler
 
@@ -462,7 +464,7 @@ Resources:
   FlowForgeApiLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${FlowForgeApiFunction}"
+      LogGroupName: !Sub "/aws/lambda/flowforge-${Environment}-api"
       RetentionInDays: 14
 
   # ==========================================================

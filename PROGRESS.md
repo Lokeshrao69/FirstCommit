@@ -311,7 +311,7 @@ Legend: ✅ done · ⏳ done pending verification · 🚧 in progress · ⬜ not
 | 6 | Workflow JSON schema | ✅ |
 | 7 | API contracts | ✅ `models/api.py` + routes |
 | 8 | Pydantic models | ✅ |
-| 9 | Deterministic state machine + tests | ✅ 114 tests pass (Chunks 13b, 14, 16, 17) |
+| 9 | Deterministic state machine + tests | ✅ 143 tests pass (Chunks 13b, 14, 16, 17, 18) |
 | 10 | Mock workflow | ✅ `knowledge/scholarship_process.json` |
 | 11 | Mock API response | ✅ mock provider + in-memory repo + `services/mock.ts` (explicit opt-in only) |
 | 12 | Frontend graph against mock | ✅ (Chunks 10–12, build + lint green) |

@@ -179,3 +179,35 @@ def test_dotenv_is_loaded(monkeypatch, tmp_path):
             env_file.unlink(missing_ok=True)
         monkeypatch.delenv("APP_NAME", raising=False)
         importlib.reload(config)
+
+
+# ----------------------------------------------- B-11 eligibility user input
+
+
+def test_eligibility_fails_with_ineligible_user_input(client):
+    res = client.post("/workflows", json={"goal": "Apply for the Merit Excellence Scholarship"})
+    assert res.status_code == 200
+    wid = res.json()["workflow_id"]
+
+    # User input with GPA 2.0 (below required 3.5)
+    adv = client.post(f"/workflows/{wid}/advance", json={"user_input": {"cumulative_gpa": 2.0}})
+    assert adv.status_code == 200
+    body = adv.json()
+    assert body["current_state"] == "not_eligible"
+    assert body["completed"] is True
+
+
+# ------------------------------------------------------------- B-7 planner audit
+
+
+def test_workflow_generated_audit_records_planner(client):
+    res = client.post("/workflows", json={"goal": "Apply for the Merit Excellence Scholarship"})
+    assert res.status_code == 200
+    wid = res.json()["workflow_id"]
+
+    audit_res = client.get(f"/workflows/{wid}/audit")
+    assert audit_res.status_code == 200
+    events = audit_res.json()["events"]
+    gen_event = next(e for e in events if e["event_type"] == "workflow_generated")
+    assert gen_event["details"]["planner"] in {"mock", "bedrock"}
+

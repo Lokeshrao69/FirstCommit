@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,10 +15,22 @@ from app.core.logging_config import configure_logging
 settings = get_settings()
 configure_logging(settings.log_level)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Warm the composition root so providers are constructed once on startup.
+    try:
+        get_services()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Composition root warm-up deferred: %s", exc)
+    yield
+
+
 app = FastAPI(
     title="FlowForge API",
     description="From intent to execution. The LLM plans, the state machine executes, the human stays in control.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -46,9 +60,6 @@ def health() -> dict:
 def root() -> dict:
     return {"name": "FlowForge", "docs": "/docs", "health": "/health"}
 
-
-# Warm the composition root so providers are constructed once.
-get_services()
 
 if __name__ == "__main__":
     import uvicorn
