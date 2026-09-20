@@ -1,52 +1,80 @@
 # FlowForge
 
-**From intent to execution. The LLM plans, the state machine executes, the human stays in control.**
+> **From eligibility intent to audited submission — knowledge-verified workflows, deterministic rules, and a human who stays in control.**
 
-FlowForge is a domain-agnostic agentic workflow engine built on AWS serverless infrastructure and FastAPI. It transforms ambiguous, natural-language operational goals into strictly validated JSON state machines, orchestrating intelligent document extraction, cross-document discrepancy validation, and human-in-the-loop approval gates before triggering consequential actions.
+FlowForge is a **knowledge-driven agentic workflow engine** for government-style application processing (scholarships, pensions, income certificates). It takes a plain-language goal, matches it to a **curated knowledge service**, runs submitted documents through a **deterministic rules engine**, lets an **advisory AI layer** flag concerns, and gates every consequential submission behind explicit human approval — with a tamper-evident audit trail throughout.
 
-Runtime Modes: **Local Offline Demo** (`DEMO_MODE=true`) & **Serverless AWS Cloud** (`DEMO_MODE=false`)  
-Primary Foundation Models: **Anthropic Claude Sonnet 4.5** (Workflow Generation & Cross-Validation) & **Claude Haiku 4.5** (Extraction & Classification)  
-Core Principle: **The LLM plans. The state machine executes. The human stays in control.**
+<p align="center">
+  <img src="https://img.shields.io/badge/status-stable-brightgreen" alt="Status: stable">
+  <img src="https://img.shields.io/badge/tests-159%20passing-success" alt="Tests: 159 passing">
+  <img src="https://img.shields.io/badge/lint-ruff%20clean-success" alt="Ruff clean">
+  <img src="https://img.shields.io/badge/python-3.12-blue" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/state%20machine-deterministic-brightgreen" alt="Deterministic">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License">
+</p>
+
+---
+
+## Table of Contents
+
+- [What is FlowForge?](#what-is-flowforge)
+- [Why FlowForge?](#why-flowforge)
+- [Product & Capabilities](#product--capabilities)
+- [How It Works](#how-it-works)
+- [System Architecture](#system-architecture)
+- [Core Subsystems](#core-subsystems)
+- [Dual-Mode Operational Architecture](#dual-mode-operational-architecture)
+- [Demo Services](#demo-services)
+- [Safety Contract](#safety-contract)
+- [Evaluation & Verification Baseline](#evaluation--verification-baseline)
+- [Security Boundaries](#security-boundaries)
+- [Getting Started](#getting-started)
+- [Verification & Testing Suite](#verification--testing-suite)
+- [Documentation Hub](#documentation-hub)
 
 ---
 
 ## What is FlowForge?
 
-FlowForge bridges the dangerous gap between unpredictable conversational AI and mission-critical business automation.
+FlowForge bridges the gap between unpredictable conversational AI and mission-critical business automation. Traditional approaches force developers into one of two broken extremes:
 
-Traditional approaches force developers into two flawed extremes:
-1. **Unconstrained Autonomous Agents (ReAct / Prompt Chaining)**: Non-deterministic LLM loops that hallucinate invalid transitions, skip mandatory validation steps, leak context across boundaries, and trigger real-world actions without provable guarantees.
-2. **Hardcoded Workflow Engines (Legacy BPMN / Rigid Form Builders)**: Brittle systems requiring manual schema authoring, static UI forms, and extensive engineering overhead for every slight variation in business policy.
+1. **Unconstrained autonomous agents** — non-deterministic LLM loops that hallucinate invalid transitions, skip mandatory validation steps, and trigger consequential actions without provable guarantees.
+2. **Hardcoded workflow engines** — brittle systems that demand manual schema authoring and months of engineering for every variation in business policy.
 
 **FlowForge unifies the best of both:**
-- The **LLM acts strictly as a planner**: It translates natural-language goals into structured workflow JSON complying with an exacting schema.
-- The **deterministic state machine acts as the executor**: It enforces transition rules, validates prerequisites, gates sensitive states, and prevents arbitrary execution.
-- The **human retains ultimate authority**: Critical approvals, policy warnings, and low-confidence document extractions require explicit human acknowledgment.
+
+- **The rules engine owns the hard decision.** A deterministic cross-document validator evaluates extracted fields against scheme requirements (`max_amount`, `min_age`, `not_expired`, `eq`, `within_days`, name consistency) and issues a provable `pass` / `needs_review` / `block`.
+- **The AI is strictly advisory.** Foundation models enrich classification, extraction, and review — they can flag concerns that prompt a human review, but they **can never reverse a deterministic block** or invent evidence.
+- **Workflows come from curated knowledge, not model output.** `create_workflow` builds the state machine from an approved knowledge service template (`planner: knowledge-template`), so every run starts from a verified, schema-checked plan.
+- **The human retains ultimate authority.** Every submission passes through an explicit approval gate. Nothing is sent without consent.
 
 ---
 
 ## Why FlowForge?
 
-| Feature | Unconstrained AI Agents | Legacy Workflow Engines | FlowForge Protocol |
+| Dimension | Unconstrained AI Agents | Legacy Workflow Engines | **FlowForge Protocol** |
 | :--- | :--- | :--- | :--- |
-| **Workflow Generation** | Unpredictable text completions; prone to drift. | 100% manual code or visual flowchart authoring. | **Natural-Language Goal Planning**; generated once into strict JSON Schema. |
-| **Execution Safety** | Black-box autonomous decisions; tools called blindly. | Hardcoded procedural logic; inflexible to new goals. | **Deterministic State Machine**; closed transition condition registry; zero arbitrary code. |
-| **Document Ingestion** | Raw OCR dumped into prompt; injection vulnerability. | Template-based OCR; breaks on format variations. | **Dual-Engine OCR (Textract + Haiku 4.5)**; XML sandboxing & magic-byte validation. |
-| **Discrepancy Checking** | Unreliable semantic LLM comparison; silent omissions. | Rigid manual rule coding per document type. | **Cross-Document Discrepancy Engine**; heuristic rule evaluation with confidence scoring. |
-| **Human Oversight** | Ad-hoc or completely absent; post-facto review. | Out-of-band email notifications or external queues. | **Structurally Enforced Approval Gates**; execution states blocked until signed off. |
-| **Audit Trail** | Ephemeral chat history; hard to reconstruct state. | Fragmented application logs across services. | **Immutable Audit Ledger**; microsecond composite keys (`timestamp#event_id`) with full replayability. |
+| **Workflow construction** | Unpredictable text completions; prone to drift. | 100% manual code or visual flowchart authoring. | **Knowledge templates**; curated services matched by keyword scoring with a documented default. |
+| **Eligibility decisions** | Black-box judgment calls, no reproducibility. | Procedural code, rewritten per scheme. | **Deterministic rules engine** (`app/rules/engine.py`); closed rule registry with documented semantics. |
+| **AI involvement** | Autonomous tool-calling, no gates. | None. | **Advisory-only layer**; can prompt review, can never overrule a block. |
+| **Document ingestion** | Raw OCR piped straight into prompts. | Template OCR; breaks on format variation. | **Classification + structured extraction**; XML sandboxing, magic-byte & MIME validation, sensitive-field masking. |
+| **Human oversight** | Ad-hoc or absent. | Out-of-band emails or external queues. | **Structurally enforced approval gates**; execution states blocked until sign-off. |
+| **Audit trail** | Ephemeral chat history. | Fragmented application logs. | **Immutable audit ledger**; `workflow_created`, `field_extracted`, `validation_result`, `human_approval`, `execution`, `documents_purged` events. |
+| **Retention** | Files live forever in prompts/blobs. | Manual cleanup. | **Purged on completion only**; blocked/cancelled bundles are retained for human review. |
 
 ---
 
 ## Product & Capabilities
 
-- **Dynamic Goal Decomposition**: Converts natural-language intent (e.g., *"Apply for the Merit Excellence Scholarship"*) into a directed acyclic graph (DAG) of validated states, transition conditions, and requirements.
-- **Deterministic State Machine**: Auto-chains automated transitions (`automatic`, `validation`, `execution`) while safely halting at interactive boundaries (`user_input`, `document_required`, `human_approval`).
-- **Dual-Engine Document Intelligence**: Amazon Textract handles high-fidelity OCR (synchronous for images, asynchronous polling with S3 for PDFs), followed by Claude Haiku 4.5 structured field extraction.
-- **Cross-Document Discrepancy Detection**: Evaluates extracted data across multiple documents simultaneously (e.g., verifying that a transcript GPA matches academic policy requirements and income certificates match declared figures).
-- **Human-in-the-Loop Review Gates**: Surfaces flagged discrepancies, policy warnings, and sub-threshold extractions in a unified review interface requiring explicit operator sign-off.
-- **Ephemeral Document Retention**: Automatically purges raw document bytes from storage upon reaching any terminal workflow state (`completed`, `cancelled`, `failed`), retaining only cryptographic audit entries.
-- **Zero-AWS Local Portability**: Operates 100% locally out-of-the-box using in-memory repositories and deterministic mock adapters, seamlessly switching to live AWS services via configuration.
+- **Knowledge-first service catalog** — `backend/knowledge/` ships three verified services (post-matric scholarship, old-age pension, income certificate) and a 7-class document-type catalog. Goals map to services via pure keyword scoring; a vague goal always lands on the flagship scholarship demo.
+- **Deterministic validation engine** — required-document completeness, required-field extraction checks, scheme rules (`max_amount`, `min_amount`, `eq`, `not_expired`, `min_age`, `within_days`), and cross-document **name-consistency** checks with tolerant fuzzy matching. Errors ⇒ `block`, warnings ⇒ `needs_review`.
+- **Advisory AI with hard safety invariants** — the LLM may downgrade `pass → needs_review` (on flagged warnings or when advisory confidence falls below `CONFIDENCE_PASS`), but it can never upgrade, unblock, or weaken a deterministic `block`. Advisory issues are deduplicated and evidence must come from the documents.
+- **Structured document intelligence** — classification and field extraction (Amazon Textract OCR + Claude Haiku 4.5 in the cloud; deterministic token-based mocks locally), magic-byte sniffing, allowed-MIME enforcement, and masking of sensitive fields (Aadhaar number, account numbers, certificate numbers) before persistence.
+- **Human-in-the-loop gates** — `user_input`, `document_required`, and `human_approval` states halt the state machine; warnings and sub-threshold extractions surface in a unified review UI.
+- **State persistence & cold-start safety** — `validation_result`, `validation_status`, `profile`, and the submission receipt (`confirmation_id`, `eligible`) are persisted in `workflow.collected_data`, so a cold restart never loses eligibility or confirmation state.
+- **Retention with review in mind** — document bytes are purged **only when a workflow completes**. Blocked and cancelled applications keep their documents so a human can inspect what went wrong; every purge is recorded as a `documents_purged` audit event.
+- **Zero-AWS local portability** — in `DEMO_MODE`, the entire stack runs on in-memory repositories and deterministic mock adapters. Flip a flag for live AWS (Bedrock, Textract, S3, DynamoDB).
+- **Interactive frontend** — a React 19 + Vite guided flow with a workflow graph canvas, document dropzones, a validation/review HUD, and a full activity ledger — buildable against an offline mock that mirrors the backend corpus bit-for-bit.
 
 ---
 
@@ -55,12 +83,13 @@ Traditional approaches force developers into two flawed extremes:
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TD
-    A["🟢 1. GOAL SUBMISSION\nUser inputs natural-language intent\ne.g. 'Apply for Merit Excellence Scholarship'"] --> B["🧠 2. AI WORKFLOW PLANNING\nClaude Sonnet 4.5 decomposes goal into typed states,\nrequired documents, validation rules, and transition edges"]
-    B --> C["🛡️ 3. SCHEMA & SAFETY VALIDATION\nDeterministic validator enforces DAG reachability,\nunique state IDs, and mandatory human approval before execution"]
-    C --> D["📄 4. DOCUMENT INGESTION & DUAL OCR\nUser uploads PDF/images; Magic-byte sniffing validates MIME;\nTextract + Claude Haiku 4.5 extract structured fields"]
-    D --> E["⚖️ 5. CROSS-VALIDATION & CONFLICT DETECTION\nRule engine evaluates criteria across documents;\nflags GPA discrepancies, expired certificates, or name mismatches"]
-    E --> F["👤 6. HUMAN-IN-THE-LOOP APPROVAL\nReviewer inspects flagged warnings and low-confidence extractions;\nexplicitly acknowledges warnings or approves final submission"]
-    F --> G["🚀 7. EXECUTION & DOCUMENT PURGE\nConsequential action executed; sensitive document bytes\npurged from storage; immutable audit event ledger sealed"]
+    A["1. GOAL SUBMISSION\nNatural-language intent,\ne.g. 'Apply for a post-matric scholarship'"] --> B["2. SERVICE MATCHING\nServiceCatalog scores the goal\nagainst knowledge keywords (pure, no LLM)\nDefault: post-matric scholarship"]
+    B --> C["3. TEMPLATE WORKFLOW\nApproved knowledge service selected;\nstate machine instantiated from template\nplanner=knowledge-template"]
+    C --> D["4. DOCUMENT INGESTION\nUpload Aadhaar, income certificate, marks memo,\nbonafide certificate, bank passbook\nMagic-byte + MIME validation, sensitive masking"]
+    D --> E["5. DETERMINISTIC VALIDATION\nRules engine: income ceiling, validity,\nage, BPL category, name consistency\n=> pass / needs_review / block"]
+    E --> F["6. ADVISORY AI\nCross-validation adds warnings only;\nCANNOT reverse a deterministic block\nConfidence < threshold => needs_review"]
+    F --> G["7. HUMAN REVIEW GATE\nReviewer acknowledges warnings or\nfixes documents; final approval required\nbefore anything is submitted"]
+    G --> H["8. EXECUTION & RETENTION\nSubmission receipt issued (confirmation_id,\neligible); documents purged ONLY on completion;\naudit ledger sealed"]
 
     style A fill:#150a2b,stroke:#9945ff,color:#ece9e3
     style B fill:#150a2b,stroke:#9945ff,color:#ece9e3
@@ -68,7 +97,33 @@ flowchart TD
     style D fill:#150a2b,stroke:#9945ff,color:#ece9e3
     style E fill:#10241b,stroke:#3fcf8a,color:#ece9e3
     style F fill:#2b1d0a,stroke:#f59e0b,color:#ece9e3
-    style G fill:#10241b,stroke:#3fcf8a,color:#ece9e3
+    style G fill:#2b1d0a,stroke:#f59e0b,color:#ece9e3
+    style H fill:#10241b,stroke:#3fcf8a,color:#ece9e3
+```
+
+The shared workflow shape (identical across services):
+
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": false}} }%%
+flowchart LR
+    DOC["document_collection\ndocument_required"] --> VAL["document_validation\nvalidation"]
+    VAL -->|"validation_passed"| APR["final_approval\nhuman_approval"]
+    VAL -->|"validation_needs_review"| REV["review_warnings\nhuman_approval"]
+    VAL -->|"validation_blocked"| BLK["blocked\nterminal"]
+    REV -->|"approval_granted"| APR
+    REV -->|"approval_rejected"| DOC
+    APR -->|"approval_granted"| SUB["submission\nexecution"]
+    APR -->|"approval_rejected"| CAN["cancelled\nterminal"]
+    SUB -->|"submission_complete"| DONE["completed\nterminal"]
+
+    style DOC fill:#150a2b,stroke:#9945ff,color:#ece9e3
+    style VAL fill:#10241b,stroke:#3fcf8a,color:#ece9e3
+    style APR fill:#2b1d0a,stroke:#f59e0b,color:#ece9e3
+    style REV fill:#2b1d0a,stroke:#f59e0b,color:#ece9e3
+    style SUB fill:#10241b,stroke:#3fcf8a,color:#ece9e3
+    style BLK fill:#2b0a0a,stroke:#ef4444,color:#ece9e3
+    style CAN fill:#2b0a0a,stroke:#ef4444,color:#ece9e3
+    style DONE fill:#10241b,stroke:#3fcf8a,color:#ece9e3
 ```
 
 ---
@@ -78,32 +133,34 @@ flowchart TD
 ```mermaid
 %%{init: {"flowchart": {"htmlLabels": false}} }%%
 flowchart TB
-    subgraph CLIENT["🖥️ CLIENT APPLICATION (React 19 + Vite + Tailwind + React Flow)"]
-        UI["Guided Flow & Goal Input\nWorkflowGraph Canvas (React Flow)\nDocument Dropzone & Conflict Review HUD\nActivity & Audit Ledger Inspector"]
-        API_CLIENT["Resilient API Client\nUnified Mode Resolver (Demo / Live)\nURL State Sync (?workflow=wf_...)"]
+    subgraph CLIENT["CLIENT APPLICATION (React 19 + Vite + Tailwind + React Flow)"]
+        UI["Guided Flow & Goal Input\nWorkflow Graph Canvas\nDocument Dropzone & Review HUD\nActivity & Audit Ledger Inspector"]
+        API_CLIENT["Resilient API Client\nMode Resolver (Mock / Live)\nURL State Sync (?workflow=wf_...)"]
         UI --> API_CLIENT
     end
 
-    subgraph BACKEND["⚙️ SERVERLESS BACKEND (FastAPI + Mangum on AWS Lambda)"]
-        HTTP["FastAPI Application (backend/main.py)\nCORS Control | Rate Limit Middleware\nGlobal Error Mapping & Request Validation"]
-        COMP["Composition Root (app/api/deps.py)\nFail-Closed Dependency Injection\nStorage Mode Resolver (Demo vs. AWS)"]
-        SM["Workflow Engine (app/workflow/state_machine.py)\nDeterministic State Transition Executor\nClosed Condition Registry | Loop Guards"]
-        SV["Schema Validator (app/workflow/schema_validator.py)\nPydantic V2 Contract | DAG Reachability\nMandatory Human Approval Verification"]
-        DS["Document Pipeline (app/services/document_service.py)\nMagic-Byte Sniffer | Delimiter Escaper\nCross-Document Validation & Retention Purge"]
+    subgraph BACKEND["SERVERLESS BACKEND (FastAPI + Mangum on AWS Lambda)"]
+        HTTP["FastAPI Application\nCORS | Rate-Limit Middleware\nGlobal Error Mapping & Validation"]
+        DI["Composition Root (app/api/deps.py)\nFail-Closed Dependency Injection\nALLOW_MOCK_FALLBACK guard"]
+        CATALOG["ServiceCatalog (app/services/catalog.py)\nKnowledge Services + Document Types\nKeyword Scoring | Default Service"]
+        SM["Workflow Engine (app/workflow/state_machine.py)\nDeterministic Transition Executor\nClosed Condition Registry | Loop Guards"]
+        DS["Document Pipeline (app/services/document_service.py)\nClassification & Extraction\nSensitive Masking | Retention Purge"]
+        RULES["Rules Engine (app/rules/engine.py)\nDeterministic Cross-Document Validator\npass / needs_review / block"]
 
-        HTTP --> COMP
-        COMP --> SM
-        COMP --> SV
-        COMP --> DS
+        HTTP --> DI
+        DI --> CATALOG
+        DI --> SM
+        DI --> DS
+        DI --> RULES
     end
 
-    subgraph AI_LAYER["🧠 CONTROLLED AI SUBSYSTEM (Amazon Bedrock)"]
-        SONNET["Claude Sonnet 4.5\nWorkflow Plan Generation\nCross-Document Conflict Analysis"]
-        HAIKU["Claude Haiku 4.5\nFast Document Classification\nStructured Field Extraction"]
+    subgraph AI_LAYER["ADVISORY AI SUBSYSTEM (Amazon Bedrock)"]
+        SONNET["Claude Sonnet 4.5\nAdvisory Cross-Document Validation\n(never overrules a block)"]
+        HAIKU["Claude Haiku 4.5\nDocument Classification\nStructured Field Extraction"]
     end
 
-    subgraph STORAGE_LAYER["☁️ STORAGE & PERSISTENCE (AWS Serverless)"]
-        S3["Amazon S3 Bucket\nPrivate Server-Side AES256\nTLS Enforcement | Auto-Purge Lifecycle"]
+    subgraph STORAGE_LAYER["STORAGE & PERSISTENCE (AWS Serverless)"]
+        S3["Amazon S3\nPrivate, SSE256, TLS\nPurge-on-Completion"]
         TEXTRACT["Amazon Textract\nAsync PDF Polling | Sync Image OCR"]
         DDB_WF["DynamoDB: Workflows\nPK: workflowId | TTL"]
         DDB_DOC["DynamoDB: Documents\nPK: workflowId / SK: documentId"]
@@ -112,10 +169,12 @@ flowchart TB
     end
 
     API_CLIENT -->|"REST / JSON"| HTTP
-    COMP -->|"boto3 invoke"| AI_LAYER
+    SM -->|"advisory"| SONNET
+    DS -->|"fields"| HAIKU
+    DS -->|"OCR"| TEXTRACT
+    RULES -->|"decision"| SM
+    DI -->|"CRUD"| DDB_WF
     DS -->|"PutObject / DeleteObject"| S3
-    DS -->|"DetectText / StartDetection"| TEXTRACT
-    SM -->|"CRUD"| DDB_WF
     DS -->|"CRUD"| DDB_DOC
     SM -->|"Immutable Append"| DDB_AUDIT
     HTTP -->|"Distributed Throttling"| DDB_RATE
@@ -128,121 +187,184 @@ flowchart TB
 
 ---
 
-## Subsystems & Core Modules
+## Core Subsystems
 
-| Module / Component | Path | Responsibility | Verification Status |
+| Module | Path | Responsibility | Verification |
 | :--- | :--- | :--- | :--- |
-| **HTTP Surface & Routes** | `backend/app/api/routes.py` | Thin REST API, request models, error mapping, and document upload streaming. | **VERIFIED (143 Tests)** |
-| **State Machine Executor** | `backend/app/workflow/state_machine.py` | Pure deterministic state advancement, loop detection, and transition gating. | **VERIFIED (Deterministic)** |
-| **Schema Validator** | `backend/app/workflow/schema_validator.py` | Enforces DAG reachability, condition syntax, and pre-execution human approval. | **VERIFIED (Strict Pydantic)** |
-| **Bedrock Provider** | `backend/app/ai/bedrock_provider.py` | AWS Bedrock Anthropic Claude Sonnet/Haiku 4.5 adapter with bounded retries. | **VERIFIED (Static & Mock)** |
-| **Document Intelligence** | `backend/app/documents/aws_processor.py` | Dual synchronous/asynchronous Textract processor with S3 URI parsing. | **VERIFIED (Unit Tested)** |
-| **Distributed Rate Limiter** | `backend/app/core/rate_limit.py` | DynamoDB token bucket limiter with fail-open fallback and API Gateway quotas. | **VERIFIED (Integration Tested)** |
-| **SAM Infrastructure** | `infrastructure/template.yaml` | AWS SAM template: API Gateway HTTP API, Lambda, S3, DynamoDB, CloudWatch. | **VALIDATED (cfn-lint Clean)** |
-| **Interactive Frontend** | `frontend/src/` | React 19 + TypeScript + Tailwind UI with React Flow visual DAG and HUD. | **BUILT (0 Lint Errors)** |
+| **Service Catalog** | `backend/app/services/catalog.py` | Loads `knowledge/services/*.json` + `knowledge/document_types.json`; goal→service keyword matching with default fallback. | **Tested** |
+| **Rules Engine** | `backend/app/rules/engine.py` | Deterministic `validate_application`: required docs, required fields, scheme rules, name-consistency; owns the hard decision. | **Tested (deterministic)** |
+| **Workflow Engine** | `backend/app/workflow/state_machine.py` | Pure deterministic advancement; closed condition registry; terminal-state handling. | **Tested (deterministic)** |
+| **Schema Validator** | `backend/app/workflow/schema_validator.py` | Enforces condition syntax, reachability, and structural integrity of generated plans. | **Tested (strict Pydantic)** |
+| **Workflow Service** | `backend/app/services/workflow_service.py` | Template instantiation (`planner=knowledge-template`), advisory merge, state persistence, retention purge. | **Tested (integration)** |
+| **Document Pipeline** | `backend/app/services/document_service.py` | Upload, classification, extraction, masking, retention purge on completion. | **Tested** |
+| **AI Adapters** | `backend/app/ai/` | `MockLLMProvider` (deterministic) / `BedrockProvider` (Sonnet 4.5 advisory, Haiku 4.5 extraction). | **Tested (static & mock)** |
+| **Knowledge Services** | `backend/knowledge/` | Three curated service templates + 7-class document-type catalog with classification signals & sensitive fields. | **Validated** |
+| **Rate Limiter** | `backend/app/core/rate_limit.py` | DynamoDB token bucket with fail-open fallback. | **Tested (integration)** |
+| **HTTP Surface** | `backend/app/api/routes.py` | REST API: create/get/advance workflows, upload documents, audit listing. | **Tested (API)** |
+| **Frontend** | `frontend/src/` | React 19 + TypeScript guided flow, graph canvas, review HUD, audit inspector. | **Built (0 lint errors)** |
+| **Infrastructure** | `infrastructure/template.yaml` | AWS SAM: API Gateway HTTP API, Lambda, S3, DynamoDB, CloudWatch. | **Validated (SAM)** |
 
 ---
 
 ## Dual-Mode Operational Architecture
 
-FlowForge is architected with a strict dependency-inversion model. All external services (LLM, Document OCR, Object Store, Database) sit behind clean Python interfaces:
+All external services sit behind clean Python interfaces. The composition root fails **closed**: outside `DEMO_MODE`, a service that cannot initialize raises `ServiceConfigurationError` at startup rather than silently substituting a mock (unless `ALLOW_MOCK_FALLBACK=true`).
 
 | Abstract Interface | Demo Mode (`DEMO_MODE=true`) | AWS Production Mode (`DEMO_MODE=false`) |
 | :--- | :--- | :--- |
-| `LLMProvider` | `MockLLMProvider` (deterministic, zero cost) | `BedrockProvider` (Claude Sonnet 4.5 & Haiku 4.5) |
-| `DocumentProcessor` | `MockDocumentProcessor` (token-based heuristic) | `AWSDocumentProcessor` (Amazon Textract Async/Sync) |
-| `DocumentObjectStore`| `MockObjectStore` (in-memory with 50MB budget) | `S3DocumentStore` (Amazon S3 private encrypted) |
-| `WorkflowRepository` | `InMemoryRepository` (thread-safe, isolated) | `DynamoRepository` (Amazon DynamoDB with TTL) |
-| `RateLimiter` | `MemoryRateLimiter` (token bucket) | `DynamoRateLimiter` (distributed counter table) |
+| `LLMProvider` | `MockLLMProvider` (deterministic, zero cost) | `BedrockProvider` (Claude Sonnet 4.5 advisory / Haiku 4.5 extraction) |
+| `DocumentProcessor` | `MockDocumentProcessor` (18-file eval corpus) | `AWSDocumentProcessor` (Amazon Textract async/sync) |
+| `DocumentObjectStore` | `MockObjectStore` (in-memory) | `S3DocumentStore` (private, encrypted) |
+| `WorkflowRepository` | `InMemoryRepository` (thread-safe) | `DynamoRepository` (Amazon DynamoDB + TTL) |
+| `RateLimiter` | `MemoryRateLimiter` (token bucket) | `DynamoRateLimiter` (distributed token bucket) |
 
-*Fail-Closed Stance*: Outside of `DEMO_MODE`, the application fails closed at startup with `ServiceConfigurationError` if any AWS service cannot be initialized, preventing silent degradation to mocks.
+**Mode contract.** `backend/.env` is the single source of truth. `DEMO_MODE=true` runs the whole stack with mocks and an in-memory store — no AWS account, no credentials, fully deterministic. `DEMO_MODE=false` requires initialized AWS services and fails closed if any are missing.
+
+---
+
+## Demo Services
+
+The knowledge catalog ships with three curated services, each with its own required documents, deterministic rules, and workflow template. All reference data is under `backend/knowledge/`.
+
+| Service | Goal keywords | Required documents | Deterministic rules |
+| :--- | :--- | :--- | :--- |
+| **Post-matric scholarship** (default) | `scholarship`, `post matric`, `merit`, `college`, `fee`, `nsp` | Aadhaar, income certificate, marks memo, bonafide certificate, bank passbook | Income ceiling `≤ ₹2,50,000` (`max_amount`); income certificate must not be expired (`not_expired`); cross-document name consistency |
+| **Old-age pension (IGNOAPS)** | `pension`, `old age`, `ignoaps`, `nsap`, `bpl`, `senior citizen` | Aadhaar, ration card, bank passbook | Age `≥ 60` from Aadhaar DOB (`min_age`); ration card category must be `BPL` (`eq`); name consistency |
+| **Income certificate** | `income certificate`, `aay praman patra`, `tehsildar`, `income proof` | Aadhaar, income self-declaration | Self-declaration must be recent (`within_days` ≤ 90, warning); name consistency |
+
+Representative outcomes in the demo corpus:
+
+- **Scholarship, clean bundle** → `pass` → final approval → submission.
+- **Scholarship, income `₹3,20,000`** (over ceiling) → **`block`** — nothing submitted.
+- **Scholarship, expired income certificate** → **`block`**.
+- **Pension, applicant aged 28** → **`block`**.
+- **Pension, ration card category `APL`** → **`block`**.
+- **Income certificate, declaration older than 90 days** → `needs_review` (warning): human may re-upload or acknowledge.
+
+---
+
+## Safety Contract
+
+These invariants are enforced by code, not convention:
+
+1. **The rules engine owns the terminal verdict.** Only deterministic evaluation of extracted fields produces `block`. No LLM output can change a `block` to anything else.
+2. **The AI can only add caution.** The advisory layer may downgrade `pass → needs_review` (flagged warnings, or advisory confidence `< CONFIDENCE_PASS = 0.85`) but never upgrade a review or reverse a block.
+3. **Evidence is never invented.** Extracted fields carry `source_text` that must reference actual document content; validation issues quote extracted evidence.
+4. **Every submission requires a human.** The state machine's `human_approval` states structurally gate document collection and final submission.
+5. **Nothing important is lost in a cold start.** `validation_status`, `validation_result`, the applicant profile, and the submission receipt (`confirmation_id`, `eligible`, `submitted_at`) are all persisted in `workflow.collected_data`.
+6. **Retention follows the verdict.** Only `completed` workflows purge their document bytes (recorded as a `documents_purged` event). `blocked` and `cancelled` bundles are kept intact for review.
+7. **State transitions are closed.** The engine only understands a fixed registry of conditions (`documents_ready`, `validation_passed`, `validation_needs_review`, `validation_blocked`, `approval_granted`, `approval_rejected`, `submission_complete`) and has no arbitrary code path.
 
 ---
 
 ## Evaluation & Verification Baseline
 
-FlowForge includes an end-to-end evaluation harness (`evaluation/run_evaluation.py`) that tests system integrity against ground-truth document corpora:
+FlowForge ships an end-to-end harness (`evaluation/run_evaluation.py`) that measures integrity against a ground-truth corpus of 18 generated documents and 7 validation scenarios. Latest run (`--strict`, mock pipeline):
 
-| Evaluation Metric | Target | Measured Result | Samples | Status |
+| Metric | Target | Measured | Samples | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| **Workflow Generation Validity** | &ge; 95.0% | **100.0%** | 12 | **PASS** |
-| **Document Classification Accuracy** | &ge; 90.0% | **100.0%** | 9 | **PASS** |
-| **Field Extraction Accuracy** | &ge; 85.0% | **100.0%** | 26 | **PASS** |
-| **Conflict Detection Accuracy** | &ge; 80.0% | **100.0%** | 3 | **PASS** |
-| **Workflow Generation Latency** | &lt; 5000 ms | **0.14 ms** | 12 | **PASS** |
-| **Document Processing Latency** | &lt; 10000 ms | **0.07 ms** | 9 | **PASS** |
+| **Workflow generation validity** | ≥ 95.0% | **100.0%** | 12 goals | **PASS** |
+| **Document classification accuracy** | ≥ 90.0% | **100.0%** | 18 docs | **PASS** |
+| **Field extraction accuracy** | ≥ 85.0% | **100.0%** | 76 fields | **PASS** |
+| **Conflict detection accuracy** | ≥ 80.0% | **100.0%** | 7 scenarios | **PASS** |
+| **Workflow generation latency** | < 5000 ms | **0.08 ms** | 12 goals | **PASS** |
+| **Document processing latency** | < 10000 ms | **0.05 ms** | 18 docs | **PASS** |
 
-> [!NOTE]
-> The baseline numbers above reflect the **deterministic mock pipeline under `DEMO_MODE=true`**, verifying contract interfaces, schema parsing, and state transition heuristics. Live evaluations against foundation models require passing `--provider bedrock` with configured AWS credentials.
+> **Note.** The baseline above is the deterministic `DEMO_MODE` pipeline (mock LLM + mock document processor) — it verifies catalog matching, schema compliance, extraction, and rule-engine semantics end-to-end. Live stack evaluations run with `--provider bedrock` against real AWS Bedrock subscriptions.
+
+The backend suite is **159 tests** (unit + integration + API), linted clean with Ruff. The frontend is lint-clean and builds without errors. CI (`.github/workflows/ci.yml`) runs backend tests and lint, frontend lint + build, strict evaluation, and SAM validation on every push/PR to `main`/`develop`.
 
 ---
 
-## Architectural Limitations & Security Boundaries
+## Security Boundaries
 
-FlowForge is currently designed and implemented as an **anonymous, single-tenant proof-of-concept / demo workflow engine**.
+FlowForge is an **anonymous, single-tenant proof-of-concept / demo** workflow engine.
 
-- **Access Control & Identity**: Workflows and documents are keyed by high-entropy UUIDs (`wf_<12 hex>`). Security relies on identifier entropy ($16^{12} \approx 2.81 \times 10^{14}$ possibilities) and IP-based rate limiting (60 rpm/IP). The API does **not** include user authentication (Cognito/JWT/OIDC) or user-level ownership isolation (`owner_id`).
-- **Production Multi-Tenancy Requirements**: Operating FlowForge as a multi-tenant production service strictly requires adding:
-  1. An API Gateway Cognito / OIDC authorizer validating user tokens;
-  2. Identity propagation storing `owner_id` on workflows and documents;
-  3. Ownership authorization checks enforcing `workflow.owner_id == authenticated_user`;
-  4. Tenant-segregated DynamoDB partition keys and S3 object prefixes;
-  5. Role-based access control (RBAC) separating applicants from reviewers.
-- **Offline Evaluation Boundary**: Ground-truth test metrics verify deterministic pipeline mechanics and schema compliance. Live AWS cloud deployments must be verified against active AWS accounts and Bedrock model subscriptions.
+- **Identity.** Workflows and documents are keyed by high-entropy IDs (`wf_<12 hex>`); security relies on identifier entropy (≈ `2.8 × 10¹⁴` possibilities) plus IP-based rate limiting (60 rpm/IP). There is **no** user authentication (Cognito/JWT/OIDC) and no per-user ownership isolation.
+- **Production multi-tenancy** requires, at minimum: an API Gateway authorizer; `owner_id` propagation on workflows and documents; ownership authorization checks; tenant-segregated DynamoDB partition keys and S3 prefixes; and RBAC separating applicants from reviewers.
+- **Sensitive fields** (Aadhaar number, bank account numbers, certificate numbers) are masked after extraction and before persistence.
+- **Live-cloud verification** must be performed against an active AWS account with Bedrock model subscriptions enabled.
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
-- **Python 3.12** (or 3.10+)
-- **Node.js &ge; 20.0.0** and **npm**
-- **AWS SAM CLI** (optional, for cloud packaging and deployment)
 
-### 1. Backend Setup (Local Demo Mode)
+- **Python 3.12** (3.10+ works)
+- **Node.js ≥ 20** and **npm**
+- **AWS SAM CLI** (optional — cloud packaging and deployment only)
+
+### 1. Backend (local demo mode)
+
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate       # On Windows: .venv\Scripts\activate
+.venv\Scripts\activate            # Windows; on macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-cp ../.env.example .env         # Defaults to DEMO_MODE=true
+copy ..\.env.example .env         # Windows; on macOS/Linux: cp ../.env.example .env
+```
+
+Edit `backend/.env` and set the demo flag:
+
+```dotenv
+DEMO_MODE=true                    # run with mocks + in-memory storage, no AWS needed
+```
+
+Start the API:
+
+```bash
 uvicorn main:app --reload
 ```
-The API is live at `http://localhost:8000` with interactive OpenAPI docs at `http://localhost:8000/docs`.
 
-### 2. Frontend Setup
+Interactive OpenAPI docs: <http://localhost:8000/docs>. Set `DEMO_MODE=false` to require real AWS services (fail-closed).
+
+### 2. Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open `http://localhost:5173` to launch the guided FlowForge interface.
+
+Open <http://localhost:5173>. The Vite dev server proxies `/api` to the backend at `http://127.0.0.1:8000`; with `DEMO_MODE=true` on the backend the entire stack runs offline. For a fully standalone frontend (no backend), set `VITE_USE_MOCK=true` in `frontend/.env`, or append `?api=mock` to the URL to force the offline mock — which mirrors the backend demo corpus exactly. The demo shortcuts on the documents step load passing or blocking document sets.
+
+### 3. Try it end-to-end
+
+```
+1. Goal: "Apply for a post-matric scholarship"
+2. Load demo documents (passing set) → Continue
+3. Documents verified → Submit application
+4. Copy the confirmation ID from the done screen
+```
+
+Then try the blocked path: restart, choose **“Load a variant that gets blocked”**, and observe the hard block with no submission.
 
 ---
 
 ## Verification & Testing Suite
 
-Run the full local test and validation suite from the project root:
+Run everything from the repository root:
 
 ```bash
-# 1. Run backend unit & integration tests (143 tests)
-python -m pytest backend/tests/ -q
+# 1. Backend tests (159 tests)
+cd backend && pytest -q && cd ..
 
-# 2. Run Ruff linter across backend and evaluation code
-python -m ruff check backend/app backend/tests backend/main.py backend/scripts
-python -m ruff check --config backend/pyproject.toml evaluation
+# 2. Ruff lint (backend + evaluation)
+cd backend && ruff check app tests main.py scripts && cd ..
+ruff check --config backend/pyproject.toml evaluation
 
-# 3. Validate CloudFormation & SAM Infrastructure
+# 3. Infrastructure validation (optional)
 cfn-lint infrastructure/template.yaml
 sam validate --lint --template infrastructure/template.yaml
 
-# 4. Run deterministic evaluation pipeline
+# 4. Deterministic evaluation (strict: all six metrics must pass)
 python evaluation/run_evaluation.py --strict
 
-# 5. Lint and build frontend production bundle
+# 5. Frontend lint + production build
 cd frontend && npm run lint && npm run build && cd ..
 
-# 6. Run end-to-end smoke demo script
+# 6. End-to-end demo smoke script
 python backend/scripts/smoke_demo.py
 ```
 
@@ -250,15 +372,16 @@ python backend/scripts/smoke_demo.py
 
 ## Documentation Hub
 
-For in-depth specifications, architectural decisions, and operational guides:
-
-- [**System Architecture**](docs/architecture.md) — Runtime topology, component map, data models, and persistence boundaries.
-- [**Workflow Engine Contract**](docs/workflow-engine.md) — State machine semantics, registered transition predicates, and validation rules.
-- [**AI Architecture**](docs/ai-architecture.md) — Bedrock prompt engineering, XML delimiter sandboxing, and confidence thresholds.
-- [**Deployment Runbook**](docs/deployment-runbook.md) — Step-by-step AWS SAM cloud deployment, Bedrock model activation, and operations.
-- [**Evaluation Methodology**](docs/evaluation.md) — Ground-truth dataset, metric definitions, and reproduction commands.
-- [**API Reference**](docs/api-reference.md) — Comprehensive OpenAPI endpoint catalog and request/response schemas.
+- [**System Architecture**](docs/architecture.md) — runtime topology, component map, data models, persistence boundaries.
+- [**Workflow Engine Contract**](docs/workflow-engine.md) — state machine semantics, registered transition predicates, validation rules.
+- [**AI Architecture**](docs/ai-architecture.md) — Bedrock adapters, advisory-layer invariants, XML sandboxing, confidence thresholds.
+- [**Deployment Runbook**](docs/deployment-runbook.md) — SAM deployment, Bedrock activation, operations.
+- [**Evaluation Methodology**](docs/evaluation.md) — ground-truth dataset, metric definitions, reproduction commands.
+- [**API Reference**](docs/api-reference.md) — OpenAPI endpoint catalog and request/response schemas.
 
 ---
 
-*FlowForge is open-source agentic workflow infrastructure.*
+<p align="center">
+  <em>FlowForge — the LLM advises, the state machine executes, the human decides.</em><br>
+  MIT &middot; 2026 FlowForge contributors
+</p>
