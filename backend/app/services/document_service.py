@@ -16,6 +16,7 @@ import uuid
 from typing import Optional
 
 from ..ai.llm_provider import LLMProvider
+from ..core.masking import apply_field_masking
 from ..core.observability import log_event
 from ..documents.processor import DocumentObjectStore, DocumentProcessor
 from ..models.document import DocumentRecord
@@ -51,12 +52,14 @@ class DocumentService:
         processor: DocumentProcessor,
         llm: LLMProvider,
         object_key_fn,
+        sensitive_fields: Optional[dict[str, list[str]]] = None,
     ) -> None:
         self._repo = repo
         self._store = store
         self._processor = processor
         self._llm = llm
         self._object_key_fn = object_key_fn
+        self._sensitive_fields = sensitive_fields or {}
 
     def process_upload(
         self,
@@ -88,6 +91,9 @@ class DocumentService:
             self._repo.save_document(doc)
 
             fields = self._llm.extract_fields(text, classification.classification)
+            sensitive = self._sensitive_fields.get(classification.classification, [])
+            if sensitive:
+                fields = apply_field_masking(fields, sensitive)
             doc.extracted_fields = fields
             doc.status = DocumentStatus.EXTRACTED
             doc.processed_at = _now()

@@ -31,13 +31,17 @@ BACKEND = REPO_ROOT / "backend"
 sys.path.insert(0, str(BACKEND))
 
 from app.ai.mock_llm_provider import MockLLMProvider  # noqa: E402
-from app.ai.workflow_generator import WorkflowGenerator, load_knowledge  # noqa: E402
 from app.core.config import Settings  # noqa: E402
 from app.documents.mock_processor import MockDocumentProcessor  # noqa: E402
 from app.models.document import ExtractedField  # noqa: E402
+from app.rules.engine import validate_application  # noqa: E402
+from app.services.catalog import ServiceCatalog  # noqa: E402
+from app.services.workflow_service import WorkflowService  # noqa: E402
 from app.workflow.schema_validator import validate  # noqa: E402
 
-KNOWLEDGE_PATH = BACKEND / "knowledge" / "scholarship_process.json"
+KNOWLEDGE_DIR = BACKEND / "knowledge"
+SERVICES_DIR = KNOWLEDGE_DIR / "services"
+DOCUMENT_TYPES_PATH = KNOWLEDGE_DIR / "document_types.json"
 GROUND_TRUTH_PATH = REPO_ROOT / "evaluation" / "ground_truth" / "documents.json"
 TEST_DOCS_DIR = REPO_ROOT / "evaluation" / "test_documents"
 RESULTS_DIR = REPO_ROOT / "evaluation" / "results"
@@ -52,17 +56,17 @@ TARGETS = {
 }
 
 GENERATION_GOALS = [
-    "I want to apply for the Merit Excellence Scholarship",
-    "Apply for the merit scholarship for my computer science degree",
-    "Submit my application for the Merit Excellence Scholarship",
-    "I need financial aid through the Merit Excellence Scholarship",
-    "Apply to the scholarship with my transcript and essay",
-    "Please start my Merit Excellence Scholarship application",
-    "Help me apply for the Merit Excellence Scholarship this year",
-    "I would like to be considered for the Merit Excellence Scholarship",
-    "Begin the application process for the merit scholarship",
-    "Apply for a scholarship that requires my GPA and documents",
-    "Submit documents for the Merit Excellence Scholarship",
+    "I want to apply for the post matric scholarship",
+    "Apply for the post matric scholarship for my computer science degree",
+    "Submit my application for the Post Matric Scholarship",
+    "I need financial aid through the Post Matric Scholarship",
+    "Help me apply for the Post Matric Scholarship this year",
+    "Please start my post matric scholarship application",
+    "I would like to apply for the Old Age Pension",
+    "Start the old age pension application process",
+    "Please help me apply for an income certificate",
+    "Begin the application process for the income certificate",
+    "I am studying and need a fee waiver",
     "Start a scholarship application workflow",
 ]
 
@@ -105,23 +109,29 @@ class Evaluator:
         self.provider = provider
         self.processor = processor
         self.settings = settings
-        self.knowledge = load_knowledge(str(KNOWLEDGE_PATH))
-        self.requirements = self.knowledge["process"]["requirements"]
+        self.catalog = ServiceCatalog(DOCUMENT_TYPES_PATH, SERVICES_DIR)
+        self.doc_types = self.catalog.doc_types()
         self.ground_truth = json.loads(GROUND_TRUTH_PATH.read_text(encoding="utf-8"))
+
+    def _workflow_for(self, goal: str) -> tuple[Any, bool]:
+        """Template-driven workflow build: match a goal to a service and assemble
+        the approved state diagram from the knowledge template."""
+        service = self.catalog.match(goal)
+        workflow = WorkflowService._workflow_from_template(
+            None, service, f"wf_eval_{abs(hash(goal)) % 10**9}", goal
+        )
+        return workflow, validate(workflow).valid
 
     # --- individual metrics ---
 
     def workflow_generation(self) -> Metric:
-        generator = WorkflowGenerator(self.provider, self.settings)
         valid = 0
         latencies: list[float] = []
         failures: list[str] = []
         for goal in GENERATION_GOALS:
             start = time.perf_counter()
             try:
-                wf = generator.generate(goal, self.knowledge)
-                report = validate(wf)
-                ok = report.valid
+                _, ok = self._workflow_for(goal)
             except Exception as exc:  # noqa: BLE001
                 ok = False
                 failures.append(f"{goal!r}: {exc}")
@@ -214,16 +224,28 @@ class Evaluator:
         )
 
     def conflict_detection(self) -> Metric:
+        """Deterministic engine verdicts against the ground truth scenarios."""
         correct = 0
         failures: list[dict[str, str]] = []
         scenarios = self.ground_truth["validation_scenarios"]
         for scenario in scenarios:
             extracted: dict[str, dict[str, ExtractedField]] = {}
-            for filename in scenario["documents"]:
-                classification, fields, _ = self._process_doc(filename)
-                extracted[classification] = fields
-            result = self.provider.run_cross_validation(self.requirements, extracted)
-            predicted = result.status.value
+            try:
+                service = self.catalog.get_service(scenario["service"])
+                for filename in scenario["documents"]:
+                    classification, fields, _ = self._process_doc(filename)
+                    extracted[classification] = fields
+                result = validate_application(
+                    service,
+                    self.doc_types,
+                    {
+                        cls: {"extracted_fields": fields}
+                        for cls, fields in extracted.items()
+                    },
+                )
+                predicted = result.status.value
+            except Exception as exc:  # noqa: BLE001
+                predicted = f"error: {exc}"
             if predicted == scenario["expected_status"]:
                 correct += 1
             else:
@@ -242,11 +264,10 @@ class Evaluator:
         )
 
     def generation_latency(self) -> Metric:
-        generator = WorkflowGenerator(self.provider, self.settings)
         latencies: list[float] = []
         for goal in GENERATION_GOALS:
             start = time.perf_counter()
-            generator.generate(goal, self.knowledge)
+            self._workflow_for(goal)
             latencies.append((time.perf_counter() - start) * 1000)
         mean = statistics.fmean(latencies)
         return Metric(

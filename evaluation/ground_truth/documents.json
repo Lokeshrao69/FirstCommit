@@ -1,103 +1,269 @@
 {
-  "process": "Merit Excellence Scholarship",
-  "applicant_name": "Alex Rivera",
+  "process": "FlowForge multi-service demo corpus (post-matric scholarship, old-age pension, income certificate)",
   "documents": [
     {
-      "file": "transcript_valid.pdf",
-      "expected_classification": "academic_transcript",
+      "file": "aadhaar.pdf",
+      "expected_classification": "aadhaar",
       "expected_fields": {
-        "student_name": "Alex Rivera",
-        "cumulative_gpa": "3.72",
-        "current_semester_gpa": "3.70",
-        "enrollment_status": "Full-time",
-        "expected_graduation": "2027"
+        "full_name": "S. Priya",
+        "aadhaar_number": "2345 6789 0123",
+        "date_of_birth": "18-06-2005",
+        "gender": "Female",
+        "address": "12, Gandhi Street, Fictional Town"
       }
     },
     {
-      "file": "transcript_gpa_conflict.pdf",
-      "expected_classification": "academic_transcript",
+      "file": "aadhaar_elderly.pdf",
+      "expected_classification": "aadhaar",
       "expected_fields": {
-        "student_name": "Alex Rivera",
-        "cumulative_gpa": "3.72",
-        "current_semester_gpa": "3.20",
-        "enrollment_status": "Full-time",
-        "expected_graduation": "2027"
+        "full_name": "K. Subba Rao",
+        "aadhaar_number": "4567 8901 2345",
+        "date_of_birth": "15-04-1958",
+        "gender": "Male",
+        "address": "4, Temple Street, Fictional Town"
       }
     },
     {
-      "file": "transcript_missing_name.pdf",
-      "expected_classification": "academic_transcript",
+      "file": "aadhaar_too_young.pdf",
+      "expected_classification": "aadhaar",
       "expected_fields": {
-        "cumulative_gpa": "3.80",
-        "current_semester_gpa": "3.75",
-        "enrollment_status": "Full-time",
-        "expected_graduation": "2027"
-      },
-      "expected_missing_fields": ["student_name"]
-    },
-    {
-      "file": "government_id_valid.pdf",
-      "expected_classification": "government_id",
-      "expected_fields": {
-        "full_name": "Alex Rivera",
-        "date_of_birth": "1999-04-12",
-        "id_number": "FF-ID-8841-DEMO"
+        "full_name": "K. Subba Rao",
+        "aadhaar_number": "5678 9012 3456",
+        "date_of_birth": "15-04-1998",
+        "gender": "Male"
       }
     },
     {
-      "file": "government_id_name_mismatch.pdf",
-      "expected_classification": "government_id",
+      "file": "aadhaar_name_mismatch.pdf",
+      "expected_classification": "aadhaar",
       "expected_fields": {
-        "full_name": "Jordan Blake"
+        "full_name": "Sita Raju",
+        "aadhaar_number": "6789 0123 4567",
+        "date_of_birth": "12-09-2004",
+        "gender": "Female"
       }
     },
     {
       "file": "income_certificate_valid.pdf",
-      "expected_classification": "proof_of_income",
+      "expected_classification": "income_certificate",
       "expected_fields": {
-        "annual_income": "24000",
-        "valid_until": "2027-06-30"
+        "full_name": "S. Priya",
+        "father_name": "S. Venkatesh",
+        "annual_family_income": "Rs. 1,80,000",
+        "valid_until": "31-03-2027",
+        "issued_date": "02-06-2026",
+        "certificate_number": "IC-2026-00421"
       }
     },
     {
       "file": "income_certificate_expired.pdf",
-      "expected_classification": "proof_of_income",
+      "expected_classification": "income_certificate",
       "expected_fields": {
-        "annual_income": "24000",
-        "valid_until": "2025-01-31"
+        "full_name": "S. Priya",
+        "annual_family_income": "Rs. 1,80,000",
+        "valid_until": "31-12-2025",
+        "issued_date": "02-06-2025",
+        "certificate_number": "IC-2024-00901"
       }
     },
     {
-      "file": "enrollment_verification.pdf",
-      "expected_classification": "enrollment_verification",
+      "file": "income_certificate_over_limit.pdf",
+      "expected_classification": "income_certificate",
       "expected_fields": {
-        "enrollment_status": "Full-time",
-        "expected_graduation": "2027"
+        "full_name": "S. Priya",
+        "annual_family_income": "Rs. 3,20,000",
+        "valid_until": "31-03-2027",
+        "certificate_number": "IC-2026-00888"
       }
     },
     {
-      "file": "personal_essay.pdf",
-      "expected_classification": "personal_essay",
+      "file": "income_certificate_name_mismatch.pdf",
+      "expected_classification": "income_certificate",
       "expected_fields": {
-        "submitted": true
+        "full_name": "Sita Raju",
+        "annual_family_income": "Rs. 1,50,000",
+        "valid_until": "31-03-2027",
+        "certificate_number": "IC-2026-00666"
+      }
+    },
+    {
+      "file": "marks_memo.pdf",
+      "expected_classification": "marks_memo",
+      "expected_fields": {
+        "full_name": "S. Priya",
+        "father_name": "S. Venkatesh",
+        "roll_number": "EN-2023-0042",
+        "examination": "B.Sc. Computer Science — VI Semester",
+        "percentage": "82% (CGPA 8.4)",
+        "result": "Pass"
+      }
+    },
+    {
+      "file": "marks_memo_no_percentage.pdf",
+      "expected_classification": "marks_memo",
+      "expected_fields": {
+        "full_name": "S. Priya",
+        "examination": "B.Sc. Computer Science — VI Semester",
+        "result": "Pass"
+      },
+      "expected_missing_fields": ["percentage"]
+    },
+    {
+      "file": "bonafide_certificate.pdf",
+      "expected_classification": "bonafide_certificate",
+      "expected_fields": {
+        "full_name": "S. Priya",
+        "institution": "University of Fiction",
+        "course": "B.Sc. Computer Science",
+        "year_of_study": "3rd Year",
+        "issued_date": "10-07-2026"
+      }
+    },
+    {
+      "file": "bank_passbook.pdf",
+      "expected_classification": "bank_passbook",
+      "expected_fields": {
+        "full_name": "K. Subba Rao",
+        "account_number": "1042568877914560",
+        "ifsc_code": "FICB0001234",
+        "bank_name": "National Fiction Bank",
+        "branch": "Fictional Town"
+      }
+    },
+    {
+      "file": "bank_passbook_student.pdf",
+      "expected_classification": "bank_passbook",
+      "expected_fields": {
+        "full_name": "S. Priya",
+        "account_number": "9988776655443322",
+        "ifsc_code": "FICB0001234",
+        "bank_name": "National Fiction Bank"
+      }
+    },
+    {
+      "file": "ration_card.pdf",
+      "expected_classification": "ration_card",
+      "expected_fields": {
+        "ration_card_number": "RC-2021-00312",
+        "household_head_name": "K. Subba Rao",
+        "category": "BPL"
+      }
+    },
+    {
+      "file": "ration_card_apl.pdf",
+      "expected_classification": "ration_card",
+      "expected_fields": {
+        "ration_card_number": "RC-2021-00444",
+        "household_head_name": "K. Subba Rao",
+        "category": "APL"
+      }
+    },
+    {
+      "file": "income_self_declaration.pdf",
+      "expected_classification": "income_self_declaration",
+      "expected_fields": {
+        "full_name": "S. Priya",
+        "annual_family_income": "Rs. 1,80,000",
+        "declaration_date": "15-08-2026"
+      }
+    },
+    {
+      "file": "income_self_declaration_stale.pdf",
+      "expected_classification": "income_self_declaration",
+      "expected_fields": {
+        "full_name": "S. Priya",
+        "annual_family_income": "Rs. 1,80,000",
+        "declaration_date": "15-03-2026"
+      }
+    },
+    {
+      "file": "income_self_declaration_over_limit.pdf",
+      "expected_classification": "income_self_declaration",
+      "expected_fields": {
+        "full_name": "S. Priya",
+        "annual_family_income": "Rs. 3,20,000",
+        "declaration_date": "15-08-2026"
       }
     }
   ],
   "validation_scenarios": [
     {
-      "name": "clean_pass",
-      "documents": ["transcript_valid.pdf"],
+      "service": "post_matric_scholarship",
+      "name": "scholarship_clean_pass",
+      "documents": [
+        "aadhaar.pdf",
+        "income_certificate_valid.pdf",
+        "marks_memo.pdf",
+        "bonafide_certificate.pdf",
+        "bank_passbook_student.pdf"
+      ],
       "expected_status": "pass"
     },
     {
-      "name": "gpa_conflict_warns",
-      "documents": ["transcript_gpa_conflict.pdf"],
-      "expected_status": "needs_review"
+      "service": "post_matric_scholarship",
+      "name": "scholarship_income_over_limit_block",
+      "documents": [
+        "aadhaar.pdf",
+        "income_certificate_over_limit.pdf",
+        "marks_memo.pdf",
+        "bonafide_certificate.pdf",
+        "bank_passbook_student.pdf"
+      ],
+      "expected_status": "block"
     },
     {
-      "name": "id_name_mismatch_warns",
-      "documents": ["transcript_valid.pdf", "government_id_name_mismatch.pdf"],
-      "expected_status": "needs_review"
+      "service": "post_matric_scholarship",
+      "name": "scholarship_expired_certificate_block",
+      "documents": [
+        "aadhaar.pdf",
+        "income_certificate_expired.pdf",
+        "marks_memo.pdf",
+        "bonafide_certificate.pdf",
+        "bank_passbook_student.pdf"
+      ],
+      "expected_status": "block"
+    },
+    {
+      "service": "post_matric_scholarship",
+      "name": "scholarship_name_mismatch_block",
+      "documents": [
+        "aadhaar.pdf",
+        "income_certificate_name_mismatch.pdf",
+        "marks_memo.pdf",
+        "bonafide_certificate.pdf",
+        "bank_passbook_student.pdf"
+      ],
+      "expected_status": "block"
+    },
+    {
+      "service": "old_age_pension",
+      "name": "pension_clean_pass",
+      "documents": [
+        "aadhaar_elderly.pdf",
+        "ration_card.pdf",
+        "bank_passbook.pdf"
+      ],
+      "expected_status": "pass"
+    },
+    {
+      "service": "old_age_pension",
+      "name": "pension_too_young_block",
+      "documents": [
+        "aadhaar_too_young.pdf",
+        "ration_card.pdf",
+        "bank_passbook.pdf"
+      ],
+      "expected_status": "block"
+    },
+    {
+      "service": "old_age_pension",
+      "name": "pension_wrong_category_block",
+      "documents": [
+        "aadhaar_elderly.pdf",
+        "ration_card_apl.pdf",
+        "bank_passbook.pdf"
+      ],
+      "expected_status": "block"
     }
   ]
 }

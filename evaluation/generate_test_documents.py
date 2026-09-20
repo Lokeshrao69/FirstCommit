@@ -27,15 +27,24 @@ from app.documents.mock_processor import MockDocumentProcessor  # noqa: E402
 DEFAULT_OUT = REPO_ROOT / "evaluation" / "test_documents"
 
 TEST_DOCUMENTS = [
-    "transcript_valid.pdf",
-    "transcript_gpa_conflict.pdf",
-    "transcript_missing_name.pdf",
-    "government_id_valid.pdf",
-    "government_id_name_mismatch.pdf",
+    "aadhaar.pdf",
+    "aadhaar_elderly.pdf",
+    "aadhaar_too_young.pdf",
+    "aadhaar_name_mismatch.pdf",
     "income_certificate_valid.pdf",
     "income_certificate_expired.pdf",
-    "enrollment_verification.pdf",
-    "personal_essay.pdf",
+    "income_certificate_over_limit.pdf",
+    "income_certificate_name_mismatch.pdf",
+    "marks_memo.pdf",
+    "marks_memo_no_percentage.pdf",
+    "bonafide_certificate.pdf",
+    "bank_passbook.pdf",
+    "bank_passbook_student.pdf",
+    "ration_card.pdf",
+    "ration_card_apl.pdf",
+    "income_self_declaration.pdf",
+    "income_self_declaration_stale.pdf",
+    "income_self_declaration_over_limit.pdf",
 ]
 
 

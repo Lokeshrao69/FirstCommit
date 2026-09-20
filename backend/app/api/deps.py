@@ -10,11 +10,9 @@ MOCK_LLM=true is an explicit, supported opt-in and keeps working regardless.
 
 from __future__ import annotations
 
-import json
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
 
 from ..ai.bedrock_provider import BedrockProvider
 from ..ai.llm_provider import LLMProvider
@@ -27,6 +25,7 @@ from ..documents.aws_processor import (
     generate_object_key,
 )
 from ..documents.mock_processor import MockDocumentProcessor, MockObjectStore
+from ..services.catalog import ServiceCatalog
 from ..services.document_service import DocumentService
 from ..services.workflow_service import WorkflowService
 from ..storage.dynamo import DynamoRepository
@@ -35,13 +34,16 @@ from ..storage.repository import WorkflowRepository
 
 logger = logging.getLogger(__name__)
 
-_KNOWLEDGE_PATH = Path(__file__).resolve().parents[2] / "knowledge" / "scholarship_process.json"
+_KNOWLEDGE_DIR = Path(__file__).resolve().parents[2] / "knowledge"
 
 
 class Services:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.knowledge = _load_knowledge(_KNOWLEDGE_PATH)
+        self.catalog = ServiceCatalog(
+            _KNOWLEDGE_DIR / "document_types.json",
+            _KNOWLEDGE_DIR / "services",
+        )
         self._fallback_used = False
         self.llm: LLMProvider = self._build_llm()
         self.repo: WorkflowRepository = self._build_repo()
@@ -53,22 +55,24 @@ class Services:
             processor=self.processor,
             llm=self.llm,
             object_key_fn=generate_object_key,
+            sensitive_fields=self.catalog.sensitive_fields(),
         )
         self.workflow_service = WorkflowService(
             self.repo,
             self.generator,
             self.llm,
             settings,
-            self.knowledge,
+            self.catalog,
             document_service=self.document_service,
             purge_documents_on_completion=settings.purge_documents_on_completion,
         )
         self.storage_mode = self._resolved_storage_mode()
         logger.info(
-            "startup storage_mode=%s demo_mode=%s allow_mock_fallback=%s",
+            "startup storage_mode=%s demo_mode=%s allow_mock_fallback=%s services=%s",
             self.storage_mode,
             settings.demo_mode,
             settings.allow_mock_fallback,
+            [s["id"] for s in self.catalog.services()],
         )
 
     def _build_llm(self) -> LLMProvider:
@@ -158,8 +162,3 @@ class Services:
 @lru_cache
 def get_services() -> Services:
     return Services(get_settings())
-
-
-def _load_knowledge(path: Path) -> dict[str, Any]:
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)

@@ -98,6 +98,7 @@ def advance_workflow(
         WorkflowStatus.COMPLETED,
         WorkflowStatus.GENERATION_FAILED,
         WorkflowStatus.CANCELLED,
+        WorkflowStatus.BLOCKED,
         WorkflowStatus.FAILED,
     }:
         raise WorkflowAlreadyTerminalError(f"workflow '{workflow.workflow_id}' is already finished")
@@ -289,6 +290,8 @@ def _finish_terminal(
     workflow.current_state = terminal.id
     if _is_cancel_terminal(terminal):
         workflow.status = WorkflowStatus.CANCELLED
+    elif _is_block_terminal(terminal):
+        workflow.status = WorkflowStatus.BLOCKED
     else:
         workflow.status = WorkflowStatus.COMPLETED
     workflow.touch()
@@ -308,6 +311,15 @@ def _finish_terminal(
 
 def _is_cancel_terminal(terminal: State) -> bool:
     return "cancel" in terminal.id.lower() or "cancel" in terminal.label.lower()
+
+
+def _is_block_terminal(terminal: State) -> bool:
+    """Terminals that represent a hard validation failure end as BLOCKED.
+
+    Blocked workflows keep their documents for review (unlike completed ones,
+    which purge) so the applicant can see exactly what failed.
+    """
+    return "block" in terminal.id.lower() or "block" in terminal.label.lower()
 
 
 def _activate(workflow: Workflow, state: State, result: AdvanceResult) -> None:

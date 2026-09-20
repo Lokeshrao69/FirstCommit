@@ -1,5 +1,7 @@
-academic_transcript: student_name, university_name, cumulative_gpa, current_semester_gpa, enrollment_status, expected_graduation, major, credits_completed
-government_id: full_name, date_of_birth, id_number
-proof_of_income: annual_income, valid_until
-personal_essay: submitted
-enrollment_verification: enrollment_status, expected_graduation
+aadhaar: full_name, date_of_birth, gender, address, aadhaar_number
+income_certificate: full_name, father_name, address, annual_family_income, income_reference_period, issued_date, valid_until, certificate_number
+marks_memo: full_name, father_name, date_of_birth, board_or_university, institution, examination, year_of_passing, roll_number, percentage, result
+bonafide_certificate: full_name, father_name, institution, course, year_of_study, roll_number, issued_date
+bank_passbook: full_name, account_number, ifsc_code, bank_name, branch
+ration_card: ration_card_number, household_head_name, category, address
+income_self_declaration: full_name, father_name, address, annual_family_income, declaration_date

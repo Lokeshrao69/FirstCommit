@@ -1,0 +1,121 @@
+{
+  "id": "income_certificate",
+  "name": "Income certificate (revenue department)",
+  "short_name": "Income certificate",
+  "description": "The certificate of annual family income issued by the revenue department / Mandal (Taluka) Revenue Officer. Needed for scholarships, fee waivers and other schemes that carry income ceilings.",
+  "keywords": [
+    "income certificate",
+    "aay praman patra",
+    "income cert",
+    "revenue",
+    "tehsildar",
+    "income proof",
+    "family income"
+  ],
+  "sources": [
+    "https://www.india.gov.in/services/details/apply-online-for-income-certificate"
+  ],
+  "illustrative_rules": "Applying for an income certificate requires a self-declaration of annual family income, proof of identity (Aadhaar) and a recent declaration. Certificate validity is state-specific — treat validity as an illustrative rule.",
+  "notes": "Income-certificate issuance, renewal and validity are governed by state rules. The demo treats the 90-day declaration window as illustrative only.",
+  "process": {
+    "name": "Income certificate preparation review",
+    "description": "Before the income certificate request is submitted, we check the self-declaration is recent and the identity documents are consistent.",
+    "required_documents": ["aadhaar", "income_self_declaration"],
+    "name_check": {
+      "description": "The name on the self-declaration must match the Aadhaar."
+    },
+    "requirements": [
+      {
+        "kind": "within_days",
+        "name": "Fresh declaration",
+        "document": "income_self_declaration",
+        "field": "declaration_date",
+        "days": 90,
+        "message": "The self-declaration is older than 90 days. Many authorities expect a fresh declaration for a new certificate.",
+        "suggestion": "Complete the self-declaration form again so the date is recent."
+      }
+    ],
+    "required_document_messages": {
+      "aadhaar": "Aadhaar card — to prove identity and address.",
+      "income_self_declaration": "Income self-declaration — the basis for the certificate."
+    }
+  },
+  "workflow": {
+    "goal": "",
+    "initial_state": "document_collection",
+    "terminal_states": ["completed", "cancelled", "blocked"],
+    "states": [
+      {
+        "id": "document_collection",
+        "label": "Upload documents",
+        "type": "document_required",
+        "description": "Upload Aadhaar and the income self-declaration.",
+        "required_documents": ["aadhaar", "income_self_declaration"],
+        "transitions": [
+          {"target": "document_validation", "condition": "documents_ready"}
+        ]
+      },
+      {
+        "id": "document_validation",
+        "label": "Check documents",
+        "type": "validation",
+        "description": "Comparing the declaration date and the names across documents.",
+        "transitions": [
+          {"target": "final_approval", "condition": "validation_passed"},
+          {"target": "review_warnings", "condition": "validation_needs_review"},
+          {"target": "blocked", "condition": "validation_blocked"}
+        ]
+      },
+      {
+        "id": "review_warnings",
+        "label": "Attention needed",
+        "type": "human_approval",
+        "description": "One or more documents need your attention before submission. Fix the document, or acknowledge and continue as the human in charge.",
+        "transitions": [
+          {"target": "final_approval", "condition": "approval_granted"},
+          {"target": "document_collection", "condition": "approval_rejected"}
+        ]
+      },
+      {
+        "id": "final_approval",
+        "label": "Final review",
+        "type": "human_approval",
+        "description": "Final human approval. Nothing is submitted without your explicit consent.",
+        "transitions": [
+          {"target": "submission", "condition": "approval_granted"},
+          {"target": "cancelled", "condition": "approval_rejected"}
+        ]
+      },
+      {
+        "id": "submission",
+        "label": "Submit application",
+        "type": "execution",
+        "description": "Submitting the assembled application (simulated in the demo).",
+        "transitions": [
+          {"target": "completed", "condition": "submission_complete"}
+        ]
+      },
+      {
+        "id": "blocked",
+        "label": "Submission blocked",
+        "type": "terminal",
+        "description": "A hard requirement failed. The application was NOT submitted.",
+        "transitions": []
+      },
+      {
+        "id": "cancelled",
+        "label": "Cancelled",
+        "type": "terminal",
+        "description": "The applicant chose not to submit.",
+        "transitions": []
+      },
+      {
+        "id": "completed",
+        "label": "Application ready",
+        "type": "terminal",
+        "description": "The reviewed application is ready to submit.",
+        "transitions": []
+      }
+    ]
+  }
+}

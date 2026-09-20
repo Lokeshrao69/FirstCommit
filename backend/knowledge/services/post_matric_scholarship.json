@@ -1,0 +1,150 @@
+{
+  "id": "post_matric_scholarship",
+  "name": "Post-matric scholarship",
+  "short_name": "Post-matric scholarship",
+  "description": "Central and state post-matric scholarships for students pursuing studies beyond Class X. The demo uses the central income ceiling so the check is concrete and verifiable.",
+  "keywords": [
+    "post matric",
+    "post-matric",
+    "scholarship",
+    "merit",
+    "student",
+    "college",
+    "college fee",
+    "nsp",
+    "national scholarship",
+    "financial aid",
+    "fee reimbursement"
+  ],
+  "sources": [
+    "https://scholarships.gov.in/public/schemeGuidelines/DEPDFAQ.pdf",
+    "https://scholarships.gov.in/public/schemeGuidelines/POST_MATRIC_OBC_GUIDELINES.pdf"
+  ],
+  "illustrative_rules": "The student must be enrolled post-matric (Class XI and above, including college). The family's annual income from all sources must not exceed Rs 2,50,000 per year (NSP post-matric income ceiling). The income certificate must be current — an expired certificate must be reissued. The name on every document should match the Aadhaar, with initials and word-order differences tolerated.",
+  "notes": "Income ceiling and income-certificate validity are state-specific. The demo encodes the Rs 2,50,000 post-matric ceiling and treats validity as an illustrative rule — verify the current requirement on the official portal before relying on this.",
+  "process": {
+    "name": "Post-matric scholarship application review",
+    "description": "Before you submit to the NSP or the state portal, we check that every required document is present, readable, current and consistent.",
+    "required_documents": [
+      "aadhaar",
+      "income_certificate",
+      "marks_memo",
+      "bonafide_certificate",
+      "bank_passbook"
+    ],
+    "name_check": {
+      "description": "The applicant's name must be consistent across all documents. Initials and word order are acceptable; a different spelling or a completely different person is a problem."
+    },
+    "requirements": [
+      {
+        "kind": "max_amount",
+        "name": "Income ceiling",
+        "document": "income_certificate",
+        "field": "annual_family_income",
+        "value": 250000,
+        "message": "The annual family income on the income certificate (Rs {{value}}) is above the Rs 2,50,000 post-matric ceiling.",
+        "suggestion": "Renew the income certificate for the current assessment year, or contact the scheme helpline if you believe the application is correct."
+      },
+      {
+        "kind": "not_expired",
+        "name": "Income certificate validity",
+        "document": "income_certificate",
+        "field": "valid_until",
+        "message": "The income certificate appears to have expired.",
+        "suggestion": "Obtain a fresh income certificate from the revenue department / Mandal Revenue Officer and re-upload it."
+      }
+    ],
+    "required_document_messages": {
+      "aadhaar": "Aadhaar card — to prove identity and date of birth.",
+      "income_certificate": "Income certificate — to prove the family earns within the scheme's ceiling.",
+      "marks_memo": "Marks memo or grade sheet — to verify the course and institution.",
+      "bonafide_certificate": "Bonafide certificate from the institution — to prove current enrolment.",
+      "bank_passbook": "Bank passbook — scholarship amounts are credited directly to this account."
+    }
+  },
+  "workflow": {
+    "workflow_id": "wf-post-matric-scholarship",
+    "goal": "",
+    "initial_state": "document_collection",
+    "terminal_states": ["completed", "cancelled", "blocked"],
+    "states": [
+      {
+        "id": "document_collection",
+        "label": "Upload documents",
+        "type": "document_required",
+        "description": "Upload Aadhaar, income certificate, marks memo, bonafide certificate and bank passbook.",
+        "required_documents": [
+          "aadhaar",
+          "income_certificate",
+          "marks_memo",
+          "bonafide_certificate",
+          "bank_passbook"
+        ],
+        "transitions": [
+          {"target": "document_validation", "condition": "documents_ready"}
+        ]
+      },
+      {
+        "id": "document_validation",
+        "label": "Check documents",
+        "type": "validation",
+        "description": "Comparing every document against the scheme's requirements with deterministic rules; the AI adds advisory notes only.",
+        "transitions": [
+          {"target": "final_approval", "condition": "validation_passed"},
+          {"target": "review_warnings", "condition": "validation_needs_review"},
+          {"target": "blocked", "condition": "validation_blocked"}
+        ]
+      },
+      {
+        "id": "review_warnings",
+        "label": "Attention needed",
+        "type": "human_approval",
+        "description": "One or more documents need your attention before submission. Fix the document, or acknowledge and continue as the human in charge.",
+        "transitions": [
+          {"target": "final_approval", "condition": "approval_granted"},
+          {"target": "document_collection", "condition": "approval_rejected"}
+        ]
+      },
+      {
+        "id": "final_approval",
+        "label": "Final review",
+        "type": "human_approval",
+        "description": "Final human approval. Nothing is submitted without your explicit consent.",
+        "transitions": [
+          {"target": "submission", "condition": "approval_granted"},
+          {"target": "cancelled", "condition": "approval_rejected"}
+        ]
+      },
+      {
+        "id": "submission",
+        "label": "Submit application",
+        "type": "execution",
+        "description": "Submitting the assembled application (simulated in the demo).",
+        "transitions": [
+          {"target": "completed", "condition": "submission_complete"}
+        ]
+      },
+      {
+        "id": "blocked",
+        "label": "Submission blocked",
+        "type": "terminal",
+        "description": "A hard requirement failed. The application was NOT submitted.",
+        "transitions": []
+      },
+      {
+        "id": "cancelled",
+        "label": "Cancelled",
+        "type": "terminal",
+        "description": "The applicant chose not to submit.",
+        "transitions": []
+      },
+      {
+        "id": "completed",
+        "label": "Application ready",
+        "type": "terminal",
+        "description": "The reviewed application is ready to submit.",
+        "transitions": []
+      }
+    ]
+  }
+}

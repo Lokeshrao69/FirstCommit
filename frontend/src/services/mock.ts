@@ -2,14 +2,20 @@
  * Deterministic offline mock of the FlowForge backend.
  *
  * Replicates the `DEMO_MODE` behavior of `backend/app/services/workflow_service.py`
- * for the Merit Excellence Scholarship so the frontend builds against mocks first.
+ * for the three demo services (post-matric scholarship, old-age pension, income
+ * certificate) so the frontend builds against mocks first.
  *
- * Demo rules (mirrors the backend mock provider):
- *  - `transcript.pdf`            -> semester GPA 3.20  => validation conflict (needs_review)
- *  - `transcript_corrected.pdf`  -> semester GPA 3.70  => validation passes
- *  - `government_id.pdf`         -> government_id
- *  - `income_certificate.pdf`    -> proof_of_income
- *  - `essay.pdf`                 -> personal_essay
+ * Demo rules (mirrors the backend mock provider and `document_requirements.json`):
+ *  - service is resolved from the goal text (pension / income certificate / else scholarship)
+ *  - uploaded files are classified by filename against the eval corpus
+ *  - `income_certificate_over_limit.pdf`   -> income over the limit          => block
+ *  - `income_certificate_expired.pdf`      -> expired certificate            => block
+ *  - `income_certificate_name_mismatch.pdf` / `aadhaar_name_mismatch.pdf`    => block
+ *  - `aadhaar_too_young.pdf`               -> applicant under 60             => block (pension)
+ *  - `ration_card_apl.pdf`                 -> not BPL                        => block (pension)
+ *  - `income_self_declaration_stale.pdf`   -> declaration older than 180 days => needs_review
+ *  - `income_self_declaration_over_limit.pdf` -> income over the limit       => block
+ *  - everything else passes
  */
 
 import type {
@@ -25,16 +31,39 @@ import type {
 } from "../types";
 
 export const GOAL_EXAMPLES = [
-  "Apply for the Merit Excellence Scholarship",
-  "Submit an expense report for approval",
+  "Apply for a post-matric scholarship",
+  "Apply for my old-age pension",
+  "Get an income certificate for my scholarship application",
 ];
 
-const REQUIRED_DOCS = ["academic_transcript", "government_id", "proof_of_income", "personal_essay"];
-const SEMESTER_GPA_REQUIREMENT = 3.5;
+type Service = "post_matric_scholarship" | "old_age_pension" | "income_certificate";
+
+const SERVICE_REQUIRED: Record<Service, string[]> = {
+  post_matric_scholarship: ["aadhaar", "income_certificate", "marks_memo", "bonafide_certificate", "bank_passbook"],
+  old_age_pension: ["aadhaar", "ration_card", "bank_passbook"],
+  income_certificate: ["aadhaar", "income_self_declaration"],
+};
+
+const SERVICE_LABEL: Record<Service, string> = {
+  post_matric_scholarship:
+    "Upload your Aadhaar, income certificate, marks memo, bonafide certificate and bank passbook.",
+  old_age_pension:
+    "Upload your Aadhaar, ration card and bank passbook to verify your pension eligibility.",
+  income_certificate:
+    "Upload your Aadhaar and a fresh income self-declaration to issue an income certificate.",
+};
+
+function serviceFor(goal: string): Service {
+  const g = goal.toLowerCase();
+  if (g.includes("pension")) return "old_age_pension";
+  if (g.includes("income cert") || g.includes("self declaration")) return "income_certificate";
+  return "post_matric_scholarship";
+}
 
 interface Session {
   workflowId: string;
   goal: string;
+  service: Service;
   status: WorkflowDetail["status"];
   current: string | null;
   states: Record<string, WorkflowState>;
@@ -48,38 +77,15 @@ interface SeedState extends Omit<WorkflowState, "status"> {
   status?: WorkflowState["status"];
 }
 
-function seedStates(): Record<string, WorkflowState> {
+function seedStates(service: Service): Record<string, WorkflowState> {
   const raw: SeedState[] = [
-    {
-      id: "eligibility_check",
-      label: "Eligibility",
-      type: "automatic",
-      status: "pending",
-      description: "Verifying eligibility against the applicant profile.",
-      required_data: [],
-      required_documents: [],
-      transitions: [
-        { target: "document_collection", condition: "eligibility_passed" },
-        { target: "not_eligible", condition: "eligibility_failed" },
-      ],
-    },
-    {
-      id: "not_eligible",
-      label: "Not Eligible",
-      type: "terminal",
-      description: "The applicant does not satisfy the eligibility requirements.",
-      required_data: [],
-      required_documents: [],
-      transitions: [],
-    },
     {
       id: "document_collection",
       label: "Documents",
       type: "document_required",
-      description:
-        "Upload your academic transcript, government ID, income certificate and personal essay.",
+      description: SERVICE_LABEL[service],
       required_data: [],
-      required_documents: REQUIRED_DOCS,
+      required_documents: SERVICE_REQUIRED[service],
       transitions: [{ target: "document_validation", condition: "documents_ready" }],
     },
     {
@@ -100,7 +106,7 @@ function seedStates(): Record<string, WorkflowState> {
       label: "Resolve Warning",
       type: "human_approval",
       description:
-        "A potential eligibility issue was detected. Acknowledge to continue, or reject to correct your documents.",
+        "A potential eligibility issue was detected. Acknowledge to continue, or correct your documents.",
       required_data: [],
       required_documents: [],
       transitions: [
@@ -121,7 +127,8 @@ function seedStates(): Record<string, WorkflowState> {
       id: "final_approval",
       label: "Approval",
       type: "human_approval",
-      description: "Human approval is required before submission. Nothing is submitted without your explicit consent.",
+      description:
+        "Human approval is required before submission. Nothing is submitted without your explicit consent.",
       required_data: [],
       required_documents: [],
       transitions: [
@@ -191,10 +198,7 @@ function transition(from: string, to: string, events: AuditEvent[]) {
   activate(to, events);
 }
 
-function audit(
-  event_type: AuditEvent["event_type"],
-  extra: Partial<AuditEvent> = {},
-): AuditEvent {
+function audit(event_type: AuditEvent["event_type"], extra: Partial<AuditEvent> = {}): AuditEvent {
   return {
     timestamp: now(),
     workflow_id: session?.workflowId ?? "",
@@ -256,9 +260,10 @@ export const mockApi = {
     session = {
       workflowId: id,
       goal,
+      service: serviceFor(goal),
       status: "in_progress",
       current: null,
-      states: seedStates(),
+      states: seedStates(serviceFor(goal)),
       collected: [],
       validation: null,
       docs: {},
@@ -270,8 +275,8 @@ export const mockApi = {
       workflow: {
         workflow_id: id,
         goal,
-        initial_state: "eligibility_check",
-        terminal_states: ["completed", "not_eligible", "blocked", "cancelled"],
+        initial_state: "document_collection",
+        terminal_states: ["completed", "cancelled", "blocked"],
         states: Object.values(session.states),
       },
     };
@@ -291,12 +296,11 @@ export const mockApi = {
     let current = Object.values(session.states).find((s) => s.status === "active");
 
     if (!current) {
-      // first advance: activate + auto-run the initial automatic state
-      activate("eligibility_check", eventsInput(events));
-      current = session.states.eligibility_check;
+      activate("document_collection", events);
+      current = session.states.document_collection;
     }
 
-type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
+    type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
 
     const run = (stateId: string): RunOutcome => {
       const s = session!.states[stateId];
@@ -333,6 +337,7 @@ type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
         if (stateId === "review_warnings") {
           transition(stateId, "document_collection", events);
           session!.current = "document_collection";
+          session!.states.document_collection.status = "active";
           return { pause: "document_upload" };
         }
         transition(stateId, "cancelled", events);
@@ -340,20 +345,15 @@ type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
         session!.current = "cancelled";
         return { pause: "terminal" };
       }
-      if (s.type === "automatic") {
-        // eligibility check always passes for the demo profile
-        if (stateId === "eligibility_check") {
-          complete(stateId);
-          transition(stateId, "document_collection", events);
-          return { pause: "document_upload" as const };
-        }
-      }
       if (s.type === "execution") {
         complete(stateId);
         events.push(
           audit("execution", {
             from_state: stateId,
-            details: { confirmation_id: `FF-2026-${String(Math.floor(1000 + Math.random() * 9000))}` },
+            details: {
+              confirmation_id: `FF-2026-${String(Math.floor(1000 + Math.random() * 9000))}`,
+              eligible: true,
+            },
           }),
         );
         transition(stateId, "completed", events);
@@ -369,48 +369,50 @@ type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
     };
 
     const runValidation = (): RunOutcome => {
-      const transcript = session?.docs.academic_transcript;
-      const semester = transcript?.extracted_fields.current_semester_gpa;
-      const conflict =
-        semester && Number(String(semester.value)) < SEMESTER_GPA_REQUIREMENT;
+      const uploaded = Object.values(session!.docs);
+      const blocks = uploaded.filter((d) => d.validation_status === "block");
+      const warnings = uploaded.filter((d) => d.validation_status === "needs_review");
+      const checked = [...session!.collected].sort();
 
-      if (conflict) {
+      if (blocks.length > 0) {
         session!.validation = {
-          status: "needs_review",
-          confidence: 0.82,
-          issues: [
-            {
-              severity: "warning",
-              field: "current_semester_gpa",
-              message:
-                "Current semester GPA 3.20 does not meet the requirement of 3.5.",
-              evidence: ["Semester GPA: 3.20"],
-              suggestion:
-                "Upload a corrected transcript or acknowledge this warning to continue.",
-            },
-          ],
-          suggestions: [
-            "Upload a corrected transcript",
-            "Acknowledge the warning to continue",
-          ],
-          checked_documents: [...session!.collected].sort(),
+          status: "block",
+          confidence: 0.97,
+          issues: blocks.flatMap((d) => d.issues),
+          suggestions: ["Correct the problem and re-upload the document."],
+          checked_documents: checked,
         };
-      } else {
-        session!.validation = {
-          status: "pass",
-          confidence: 0.93,
-          issues: [],
-          suggestions: ["All cross-document checks passed."],
-          checked_documents: [...session!.collected].sort(),
-        };
+        const state = session!.states.document_validation;
+        complete(state.id);
+        transition(state.id, "blocked", events);
+        session!.status = "blocked";
+        session!.current = "blocked";
+        return { pause: "terminal" };
       }
 
-      const state = session!.states.document_validation;
-      complete(state.id);
-      if (session!.validation.status === "needs_review") {
+      if (warnings.length > 0) {
+        session!.validation = {
+          status: "needs_review",
+          confidence: 0.92,
+          issues: warnings.flatMap((d) => d.issues),
+          suggestions: ["Upload a corrected document", "Acknowledge the warning to continue"],
+          checked_documents: checked,
+        };
+        const state = session!.states.document_validation;
+        complete(state.id);
         transition(state.id, "review_warnings", events);
         return { pause: "approval" };
       }
+
+      session!.validation = {
+        status: "pass",
+        confidence: 0.96,
+        issues: [],
+        suggestions: ["All cross-document checks passed."],
+        checked_documents: checked,
+      };
+      const state = session!.states.document_validation;
+      complete(state.id);
       transition(state.id, "final_approval", events);
       return run("final_approval");
     };
@@ -426,7 +428,6 @@ type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
       const active = Object.values(session.states).find((s) => s.status === "active");
       session.current = active?.id ?? session.current;
     }
-
     if (outcome.pause === "terminal") {
       const terminal = Object.values(session.states).find(
         (s) => s.status === "active" && s.type === "terminal",
@@ -440,18 +441,13 @@ type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
   async uploadDocument(_workflowId: string, file: File): Promise<DocumentUploadResult> {
     await delay(900);
     if (!session) throw new Error("no active session");
-    const name = file.name.toLowerCase();
     const result = classify(file.name);
 
-    // re-uploading a corrected transcript replaces the conflicted academic transcript
-    if (name === "transcript_corrected.pdf" && session.docs.academic_transcript) {
-      delete session.docs.academic_transcript;
-    }
     if (result.classification && !session.collected.includes(result.classification)) {
       session.collected.push(result.classification);
     }
 
-    const events = [];
+    const events: AuditEvent[] = [];
     events.push(audit("document_uploaded", { details: { filename: file.name } }));
     events.push(
       audit("field_extracted", {
@@ -460,6 +456,7 @@ type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
     );
     session.audit.push(...events);
 
+    // a re-uploaded document replaces the previous one for that classification
     session.docs[result.classification ?? result.document_id] = result;
     return result;
   },
@@ -471,91 +468,74 @@ type RunOutcome = { pause: "document_upload" | "approval" | "terminal" | null };
   },
 };
 
-function eventsInput(events: AuditEvent[]): AuditEvent[] {
-  return events;
+interface Rep {
+  classification: string;
+  fields: Record<string, string>;
+  verdict?: "block" | "needs_review";
+  issue?: { field: string; message: string };
 }
+
+const REPOS: Record<string, Rep> = {
+  "aadhaar.pdf": { classification: "aadhaar", fields: { full_name: "S. Priya", aadhaar_number: "2345 6789 0123", date_of_birth: "18-06-2005", gender: "Female", address: "12, Gandhi Street, Fictional Town" } },
+  "aadhaar_elderly.pdf": { classification: "aadhaar", fields: { full_name: "K. Subba Rao", aadhaar_number: "4567 8901 2345", date_of_birth: "15-04-1958", gender: "Male", address: "4, Temple Street, Fictional Town" } },
+  "aadhaar_too_young.pdf": { classification: "aadhaar", fields: { full_name: "K. Subba Rao", aadhaar_number: "5678 9012 3456", date_of_birth: "15-04-1998", gender: "Male" }, verdict: "block", issue: { field: "date_of_birth", message: "The applicant is 28 years old; the old-age pension requires age 60 or above." } },
+  "aadhaar_name_mismatch.pdf": { classification: "aadhaar", fields: { full_name: "Sita Raju", aadhaar_number: "6789 0123 4567", date_of_birth: "12-09-2004", gender: "Female" }, verdict: "block", issue: { field: "full_name", message: "Applicant name on the Aadhaar does not match the other documents." } },
+  "income_certificate_valid.pdf": { classification: "income_certificate", fields: { full_name: "S. Priya", father_name: "S. Venkatesh", annual_family_income: "Rs. 1,80,000", valid_until: "31-03-2027", issued_date: "02-06-2026", certificate_number: "IC-2026-00421" } },
+  "income_certificate_expired.pdf": { classification: "income_certificate", fields: { full_name: "S. Priya", annual_family_income: "Rs. 1,80,000", valid_until: "31-12-2025", issued_date: "02-06-2025", certificate_number: "IC-2024-00901" }, verdict: "block", issue: { field: "valid_until", message: "The income certificate expired on 31-12-2025. A valid certificate is required." } },
+  "income_certificate_over_limit.pdf": { classification: "income_certificate", fields: { full_name: "S. Priya", annual_family_income: "Rs. 3,20,000", valid_until: "31-03-2027", certificate_number: "IC-2026-00888" }, verdict: "block", issue: { field: "annual_family_income", message: "Annual family income of Rs. 3,20,000 exceeds the Rs. 2,50,000 eligibility limit." } },
+  "income_certificate_name_mismatch.pdf": { classification: "income_certificate", fields: { full_name: "Sita Raju", annual_family_income: "Rs. 1,50,000", valid_until: "31-03-2027", certificate_number: "IC-2026-00666" }, verdict: "block", issue: { field: "full_name", message: "Applicant name does not match the Aadhaar." } },
+  "marks_memo.pdf": { classification: "marks_memo", fields: { full_name: "S. Priya", father_name: "S. Venkatesh", roll_number: "EN-2023-0042", examination: "B.Sc. Computer Science - VI Semester", percentage: "82% (CGPA 8.4)", result: "Pass" } },
+  "bonafide_certificate.pdf": { classification: "bonafide_certificate", fields: { full_name: "S. Priya", institution: "University of Fiction", course: "B.Sc. Computer Science", year_of_study: "3rd Year", issued_date: "10-07-2026" } },
+  "bank_passbook_student.pdf": { classification: "bank_passbook", fields: { full_name: "S. Priya", account_number: "9988776655443322", ifsc_code: "FICB0001234", bank_name: "National Fiction Bank" } },
+  "bank_passbook.pdf": { classification: "bank_passbook", fields: { full_name: "K. Subba Rao", account_number: "1042568877914560", ifsc_code: "FICB0001234", bank_name: "National Fiction Bank", branch: "Fictional Town" } },
+  "ration_card.pdf": { classification: "ration_card", fields: { ration_card_number: "RC-2021-00312", household_head_name: "K. Subba Rao", category: "BPL" } },
+  "ration_card_apl.pdf": { classification: "ration_card", fields: { ration_card_number: "RC-2021-00444", household_head_name: "K. Subba Rao", category: "APL" }, verdict: "block", issue: { field: "category", message: "The ration card category is APL, not BPL as required by the pension scheme." } },
+  "income_self_declaration.pdf": { classification: "income_self_declaration", fields: { full_name: "S. Priya", annual_family_income: "Rs. 1,80,000", declaration_date: "15-08-2026" } },
+  "income_self_declaration_stale.pdf": { classification: "income_self_declaration", fields: { full_name: "S. Priya", annual_family_income: "Rs. 1,80,000", declaration_date: "15-03-2026" }, verdict: "needs_review", issue: { field: "declaration_date", message: "The declaration is older than 180 days. Refresh it before submission." } },
+  "income_self_declaration_over_limit.pdf": { classification: "income_self_declaration", fields: { full_name: "S. Priya", annual_family_income: "Rs. 3,20,000", declaration_date: "15-08-2026" }, verdict: "block", issue: { field: "annual_family_income", message: "Annual family income of Rs. 3,20,000 exceeds the Rs. 2,50,000 eligibility limit." } },
+};
 
 function classify(filename: string): DocumentUploadResult {
   const id = `doc_${Math.floor(Math.random() * 0xffffffff).toString(16)}`;
-  const f = (value: string, confidence: number, source_text: string) => ({
-    value,
-    confidence,
-    source_text,
-  });
-  const base = (classification: string, fields: Record<string, string>) => ({
-    document_id: id,
-    filename,
-    classification,
-    confidence: 0.96,
-    extracted_fields: Object.fromEntries(
-      Object.entries(fields).map(([k, v]) => [k, f(v, 0.96, v)]),
-    ),
-    issues: [],
-    message: "Document processed",
-  });
-  const name = filename.toLowerCase();
-
-  if (name === "transcript.pdf") {
+  const repo = REPOS[filename.toLowerCase()];
+  if (!repo) {
     return {
-      ...base("academic_transcript", {
-        student_name: "Alex Rivera",
-        cumulative_gpa: "3.72",
-        current_semester_gpa: "3.20",
-        enrollment_status: "Full-time",
-        expected_graduation: "2027",
-      }),
-      validation_status: "needs_review",
-      issues: [
+      document_id: id,
+      filename,
+      classification: null,
+      confidence: 0.4,
+      extracted_fields: {},
+      issues: [],
+      message: "Could not reliably classify this document.",
+    };
+  }
+  const fields = Object.fromEntries(
+    Object.entries(repo.fields).map(([k, v]) => [k, { value: v, confidence: 0.96, source_text: v }]),
+  );
+  const issues = repo.issue
+    ? [
         {
-          severity: "warning",
-          field: "current_semester_gpa",
-          message: "Current semester GPA 3.20 does not meet the requirement of 3.5.",
-          evidence: ["Semester GPA: 3.20"],
-          suggestion: "Upload a corrected transcript or acknowledge this warning to continue.",
+          severity: ("error" as const),
+          field: repo.issue.field,
+          message: repo.issue.message,
+          evidence: [repo.fields[repo.issue.field]],
+          suggestion: "Upload a corrected document to continue.",
         },
-      ],
-    };
-  }
-  if (name === "transcript_corrected.pdf") {
-    return {
-      ...base("academic_transcript", {
-        student_name: "Alex Rivera",
-        cumulative_gpa: "3.72",
-        current_semester_gpa: "3.70",
-        enrollment_status: "Full-time",
-        expected_graduation: "2027",
-      }),
-      validation_status: "pass",
-    };
-  }
-  if (name === "government_id.pdf") {
-    return base("government_id", {
-      full_name: "Alex Rivera",
-      government_id_number: "FF-ID-8841-DEMO",
-      date_of_birth: "1999-04-12",
-    });
-  }
-  if (name === "income_certificate.pdf") {
-    return base("proof_of_income", {
-      income_certificate_number: "INC-2026-117",
-      declared_annual_income: "42,000",
-      issued_date: "2026-01-15",
-    });
-  }
-  if (name === "essay.pdf") {
-    return base("personal_essay", {
-      essay_submitted: "Yes",
-      essay_title: "Why I deserve the Merit Excellence Scholarship",
-    });
-  }
+      ]
+    : [];
   return {
     document_id: id,
     filename,
-    classification: null,
-    confidence: 0.4,
-    extracted_fields: {},
-    issues: [],
-    message: "Could not reliably classify this document.",
+    classification: repo.classification,
+    confidence: 0.96,
+    extracted_fields: fields,
+    validation_status: repo.verdict ?? "pass",
+    issues,
+    message: repo.verdict === "block"
+      ? "This document fails a hard requirement."
+      : repo.verdict === "needs_review"
+        ? "This document raises a warning that needs review."
+        : "Document processed",
   };
 }
 
