@@ -7,6 +7,8 @@
  * with empty defaults so the UI can rely on them.
  */
 
+import { maskNumber, redactDigits, sensitiveFor } from "../utils/masking";
+
 import type {
   AdvanceResponse,
   AuditEvent,
@@ -133,10 +135,12 @@ export function normalizeCreate(raw: unknown): CreateWorkflowResult {
 export function normalizeUpload(raw: unknown): DocumentUploadResult {
   if (!isObj(raw) || typeof raw.document_id !== "string") throw bad("document");
   const fields = isObj(raw.extracted_fields) ? raw.extracted_fields : {};
+  const classification = typeof raw.classification === "string" ? raw.classification : null;
+  const sensitive = sensitiveFor(classification);
   return {
     document_id: raw.document_id,
     filename: typeof raw.filename === "string" ? raw.filename : "document",
-    classification: typeof raw.classification === "string" ? raw.classification : null,
+    classification,
     confidence: typeof raw.confidence === "number" ? raw.confidence : null,
     extracted_fields: Object.fromEntries(
       Object.entries(fields)
@@ -146,9 +150,12 @@ export function normalizeUpload(raw: unknown): DocumentUploadResult {
           return [
             k,
             {
-              value: String(f.value ?? ""),
+              // Privacy: sensitive values are masked here, at the data
+              // boundary, mirroring the backend pipeline — never "just
+              // visually" in a component.
+              value: sensitive.includes(k) ? maskNumber(f.value) : String(f.value ?? ""),
               confidence: typeof f.confidence === "number" ? f.confidence : 0,
-              source_text: typeof f.source_text === "string" ? f.source_text : "",
+              source_text: sensitive.includes(k) ? redactDigits(f.source_text ?? "") : typeof f.source_text === "string" ? f.source_text : "",
             },
           ];
         }),

@@ -12,13 +12,16 @@ import type { WorkflowDefinition, WorkflowDetail } from "@/types";
 import { layout } from "@/utils/layout";
 import { findRoot } from "@/utils/workflow";
 import { StateNode, type StateNodeData, type StateNodeType } from "./StateNode";
+import { MobileTimeline } from "./MobileTimeline";
 
 interface WorkflowGraphProps {
   workflow: WorkflowDefinition | WorkflowDetail | null;
   className?: string;
 }
 
-/** The forged execution map. Works with a plan (all pending) or a live detail. */
+/** The forged execution map. Works with a plan (all pending) or a live detail.
+ *  Above `md` it's the graph; on small screens it collapses to a vertical
+ *  execution timeline so the path is still readable top-to-bottom. */
 export function WorkflowGraph({ workflow, className = "" }: WorkflowGraphProps) {
   const { nodes, edges } = useMemo(() => {
     if (!workflow) return { nodes: [], edges: [] };
@@ -38,6 +41,7 @@ export function WorkflowGraph({ workflow, className = "" }: WorkflowGraphProps) 
         type: s.type,
         status: isDefinition ? "pending" : s.status,
         active: s.id === activeId,
+        stageId: s.id,
       };
       return {
         id: s.id,
@@ -66,7 +70,7 @@ export function WorkflowGraph({ workflow, className = "" }: WorkflowGraphProps) 
             ? "var(--success)"
             : fromActive
               ? "var(--primary)"
-              : "rgb(var(--text-muted) / 0.4)";
+              : "rgb(var(--text-muted) / 0.5)";
         return {
           id: `${s.id}->${t.target}-${idx}`,
           source: s.id,
@@ -75,13 +79,13 @@ export function WorkflowGraph({ workflow, className = "" }: WorkflowGraphProps) 
           type: "default",
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            width: 14,
-            height: 14,
+            width: 16,
+            height: 16,
             color,
           },
           style: {
             stroke: color,
-            strokeWidth: fromActive ? 2 : pathDone ? 1.8 : 1.25,
+            strokeWidth: fromActive ? 2.4 : pathDone ? 2.6 : 1.5,
             strokeDasharray: leadsToBlock ? "5 4" : undefined,
           },
         };
@@ -94,22 +98,27 @@ export function WorkflowGraph({ workflow, className = "" }: WorkflowGraphProps) 
 
   return (
     <div className={`h-full w-full ${className}`}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.18, maxZoom: 1 }}
-        minZoom={0.28}
-        maxZoom={1.4}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        panOnScroll
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={26} size={1.1} color="rgb(var(--text-muted) / 0.22)" />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+      <div className="hidden h-full w-full md:block">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.16, maxZoom: 1 }}
+          minZoom={0.28}
+          maxZoom={1.4}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          panOnScroll
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={26} size={1.1} color="rgb(var(--text-muted) / 0.22)" />
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </div>
+      <div className="h-full w-full md:hidden">
+        <MobileTimeline workflow={workflow} />
+      </div>
     </div>
   );
 }
