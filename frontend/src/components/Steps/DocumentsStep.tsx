@@ -202,7 +202,7 @@ export function DocumentsStep({ detail, documents, busy, onUpload, onContinue }:
         {/* A blocked file still passes the slot gate; the run is held until fixed. */}
         {anyBlocked && (
           <div
-            className="animate-fade flex items-start gap-2 rounded-container border border-error/40 bg-error/8 px-3 py-2.5 lg:col-span-2"
+            className="animate-attention flex items-start gap-2 rounded-container border border-error/40 bg-error/8 px-3 py-2.5 lg:col-span-2"
             role="alert"
           >
             <ShieldAlert size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-error" />

@@ -61,7 +61,7 @@ export function MobileTimeline({
         const active = s.id === activeId;
         const last = i === ordered.length - 1;
         return (
-          <li key={s.id} className="relative flex gap-3 pb-4 last:pb-0">
+          <li key={s.id} className="relative flex gap-3 pb-4 last:pb-0" aria-current={active ? "step" : undefined}>
             {!last && (
               <span aria-hidden="true" className="absolute left-[15px] top-8 h-[calc(100%-20px)] w-px bg-border" />
             )}
