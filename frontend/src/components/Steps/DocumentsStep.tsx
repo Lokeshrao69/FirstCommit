@@ -18,6 +18,26 @@ function toMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Something went wrong.";
 }
 
+const PASSING_FILE: Record<string, string> = {
+  aadhaar: "aadhaar.pdf",
+  income_certificate: "income_certificate_valid.pdf",
+  marks_memo: "marks_memo.pdf",
+  bonafide_certificate: "bonafide_certificate.pdf",
+  bank_passbook: "bank_passbook_student.pdf",
+  ration_card: "ration_card.pdf",
+  income_self_declaration: "income_self_declaration.pdf",
+};
+
+/** Files whose demo verdict is a hard block, keyed by the goal's service. */
+function blockingVariant(goal: string): { key: string; file: string } {
+  const g = goal.toLowerCase();
+  if (g.includes("pension")) return { key: "aadhaar", file: "aadhaar_too_young.pdf" };
+  if (g.includes("income cert") || g.includes("self declaration")) {
+    return { key: "income_self_declaration", file: "income_self_declaration_over_limit.pdf" };
+  }
+  return { key: "income_certificate", file: "income_certificate_over_limit.pdf" };
+}
+
 export function DocumentsStep({ detail, documents, busy, onUpload, onContinue }: DocumentsStepProps) {
   const headingRef = useStepHeading();
   const docState = documentState(detail.states);
@@ -48,6 +68,13 @@ export function DocumentsStep({ detail, documents, busy, onUpload, onContinue }:
       }
     } catch (err) {
       setRow(key, { checking: false, problem: toMessage(err) });
+    }
+  };
+
+  const loadDemo = async () => {
+    for (const key of required) {
+      const file = PASSING_FILE[key];
+      if (file) await uploadFile(key, new File(["demo " + key], file, { type: "application/pdf" }));
     }
   };
 
@@ -93,27 +120,20 @@ export function DocumentsStep({ detail, documents, busy, onUpload, onContinue }:
               variant="secondary"
               size="sm"
               disabled={busy}
-              onClick={() =>
-                void uploadFile(
-                  "academic_transcript",
-                  new File(["demo conflict"], "transcript.pdf", { type: "application/pdf" }),
-                )
-              }
+              onClick={() => void loadDemo()}
             >
-              Load conflicting transcript
+              Load demo documents
             </Button>
             <Button
               variant="secondary"
               size="sm"
               disabled={busy}
-              onClick={() =>
-                void uploadFile(
-                  "academic_transcript",
-                  new File(["demo ok"], "transcript_corrected.pdf", { type: "application/pdf" }),
-                )
-              }
+              onClick={() => {
+                const { key, file } = blockingVariant(detail.goal);
+                void uploadFile(key, new File(["demo block"], file, { type: "application/pdf" }));
+              }}
             >
-              Load correct transcript
+              Load a variant that gets blocked
             </Button>
           </div>
           <p className="mt-1 text-small text-muted">Demo shortcuts (hidden in production).</p>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle2, Copy, RotateCcw, XCircle, XOctagon, HelpCircle } from "lucide-react";
+import { CheckCircle2, Copy, RotateCcw, ShieldAlert, XCircle, XOctagon, HelpCircle } from "lucide-react";
 import type { WorkflowStatus } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { useStepHeading } from "@/hooks/useStepFocus";
@@ -26,35 +26,50 @@ export function DoneStep({ status, confirmationId, onRestart }: DoneStepProps) {
   };
 
   const success = status === "completed";
+  const blocked = status === "blocked";
   const cancelled = status === "cancelled";
   const failed = status === "failed";
 
-  const Icon = success ? CheckCircle2 : cancelled ? XOctagon : failed ? XCircle : HelpCircle;
+  const Icon = success
+    ? CheckCircle2
+    : blocked
+      ? ShieldAlert
+      : cancelled
+        ? XOctagon
+        : failed
+          ? XCircle
+          : HelpCircle;
   const iconClass = success
     ? "text-success"
-    : cancelled
-      ? "text-muted"
-      : failed
-        ? "text-error"
-        : "text-warning";
+    : blocked
+      ? "text-error"
+      : cancelled
+        ? "text-muted"
+        : failed
+          ? "text-error"
+          : "text-warning";
 
   const title = success
     ? "Application submitted"
-    : cancelled
-      ? "Application cancelled"
-      : failed
-        ? "Application failed"
-        : "Plan failed";
+    : blocked
+      ? "Application blocked"
+      : cancelled
+        ? "Application cancelled"
+        : failed
+          ? "Application failed"
+          : "Plan failed";
 
   const body = success
     ? confirmationId
       ? "We've submitted your request. Here's your confirmation ID."
       : "Submitted, but no confirmation ID was returned. Check the activity log."
-    : cancelled
-      ? "We cancelled your application at your request. Nothing was sent."
-      : failed
-        ? "We couldn't complete your request. Start again or check the activity log."
-        : "We couldn't create a plan for this request. Try a different description.";
+    : blocked
+      ? "A hard requirement isn't met, so nothing was submitted. Correct the documents and start a new request."
+      : cancelled
+        ? "We cancelled your application at your request. Nothing was sent."
+        : failed
+          ? "We couldn't complete your request. Start again or check the activity log."
+          : "We couldn't create a plan for this request. Try a different description.";
 
   return (
     <section className="flex min-h-[60vh] flex-col items-start justify-center py-6 sm:items-center sm:text-center">

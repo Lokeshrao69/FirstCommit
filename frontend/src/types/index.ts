@@ -15,7 +15,13 @@ export type StateType =
 
 export type StateStatus = "pending" | "active" | "completed" | "warning" | "blocked" | "failed";
 
-export type WorkflowStatus = "in_progress" | "completed" | "cancelled" | "failed" | "generation_failed";
+export type WorkflowStatus =
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "blocked"
+  | "failed"
+  | "generation_failed";
 
 export type ValidationStatus = "pass" | "needs_review" | "block";
 
@@ -167,10 +173,13 @@ export const STATE_TYPE_LABELS: Record<StateType, string> = {
 };
 
 export const DOC_LABELS: Record<string, string> = {
-  academic_transcript: "Academic transcript",
-  government_id: "Government ID",
-  proof_of_income: "Proof of income",
-  personal_essay: "Personal essay",
+  aadhaar: "Aadhaar card",
+  income_certificate: "Income certificate",
+  marks_memo: "Marks memo",
+  bonafide_certificate: "Bonafide certificate",
+  bank_passbook: "Bank passbook",
+  ration_card: "Ration card",
+  income_self_declaration: "Income self-declaration",
 };
 
 export const NEEDS_LABELS: Record<string, string> = {
