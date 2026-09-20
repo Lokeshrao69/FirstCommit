@@ -14,7 +14,7 @@ from typing import Any
 from ..models.document import CrossValidationResult, ExtractedField, ValidationIssue
 from ..models.enums import ValidationSeverity, ValidationStatus
 from .amounts import inr_grouped, parse_inr
-from .dates import age_from, days_between, is_expired, parse_date
+from .dates import age_from, days_between, is_expired
 from .names import names_match, similarity, unrelated_names
 
 _ERROR = ValidationSeverity.ERROR
@@ -28,18 +28,26 @@ def _fields_of(doc: Any) -> dict[str, ExtractedField]:
 
 
 def _value_of(field: Any) -> Any:
-    return field.value if isinstance(field, ExtractedField) else field
+    if isinstance(field, ExtractedField):
+        return field.value
+    if isinstance(field, dict) and "value" in field:
+        return field["value"]
+    return field
 
 
 def _evidence_of(field: Any) -> list[str]:
     if isinstance(field, ExtractedField) and field.source_text:
         return [field.source_text]
+    if isinstance(field, dict):
+        source = field.get("source_text")
+        return [str(source)] if source else []
     return [str(field)] if field is not None else []
 
 
 def _fill(template: str, **kwargs: Any) -> str:
     out = template
     for key, value in kwargs.items():
+        out = out.replace("{{" + key + "}}", str(value))
         out = out.replace("{" + key + "}", str(value))
     return out
 

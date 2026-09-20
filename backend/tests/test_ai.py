@@ -58,9 +58,8 @@ def make_doc(classification: str, **fields) -> DocumentRecord:
 def test_every_service_template_is_schema_valid(catalog):
     for service in catalog.services():
         tmpl = service["workflow"]
-        from app.ai.mock_llm_provider import MockLLMProvider
-        from app.models.workflow import State, Transition, Workflow
         from app.models.enums import StateType, WorkflowStatus
+        from app.models.workflow import State, Transition, Workflow
 
         states = [
             State(
@@ -185,9 +184,10 @@ def test_engine_blocks_when_income_certificate_expired():
         "aadhaar": make_doc("aadhaar", full_name="S. Priya", aadhaar_number="234567890123", date_of_birth="18-06-2005"),
         "marks_memo": make_doc("marks_memo", full_name="S. Priya", examination="VI Semester", percentage="82"),
         "bonafide_certificate": make_doc("bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"),
-        "income_certificate": make_doc(
+"income_certificate": make_doc(
             "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-12-2025"
         ),
+        "bank_passbook": make_doc("bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.BLOCK
@@ -233,6 +233,7 @@ def test_engine_passes_clean_application():
         "income_certificate": make_doc(
             "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-03-2027"
         ),
+        "bank_passbook": make_doc("bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.PASS
@@ -262,6 +263,7 @@ def test_engine_warns_on_close_spelling_name_mismatch():
         "income_certificate": make_doc(
             "income_certificate", full_name="Alexander Rivera", annual_family_income="Rs. 1,80,000", valid_until="31-03-2027"
         ),
+        "bank_passbook": make_doc("bank_passbook", full_name="Alexander Rivera", account_number="9988776655443322", ifsc_code="FICB0001234"),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.NEEDS_REVIEW
@@ -347,6 +349,7 @@ def _clean_post_matric_docs() -> dict[str, DocumentRecord]:
         "income_certificate": make_doc(
             "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-03-2027"
         ),
+        "bank_passbook": make_doc("bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"),
     }
 
 
