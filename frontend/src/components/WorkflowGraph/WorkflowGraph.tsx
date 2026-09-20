@@ -15,10 +15,11 @@ import { StateNode, type StateNodeData, type StateNodeType } from "./StateNode";
 
 interface WorkflowGraphProps {
   workflow: WorkflowDefinition | WorkflowDetail | null;
+  className?: string;
 }
 
-/** Works with either a plan definition (all states pending) or a live detail. */
-export function WorkflowGraph({ workflow }: WorkflowGraphProps) {
+/** The forged execution map. Works with a plan (all pending) or a live detail. */
+export function WorkflowGraph({ workflow, className = "" }: WorkflowGraphProps) {
   const { nodes, edges } = useMemo(() => {
     if (!workflow) return { nodes: [], edges: [] };
     const states = workflow.states;
@@ -46,23 +47,45 @@ export function WorkflowGraph({ workflow }: WorkflowGraphProps) {
       };
     });
 
+    const statusOf = (id: string): string => {
+      const st = states.find((x) => x.id === id);
+      if (!st) return "pending";
+      return isDefinition ? "pending" : st.status;
+    };
+
     const edges: Edge[] = states.flatMap((s) =>
-      s.transitions.map((t, idx) => ({
-        id: `${s.id}->${t.target}-${idx}`,
-        source: s.id,
-        target: t.target,
-        animated: s.id === activeId,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: s.id === activeId ? "var(--primary)" : "var(--text-muted)",
-        },
-        style:
-          s.id === activeId
-            ? { stroke: "var(--primary)", strokeWidth: 2 }
-            : { stroke: "var(--border)", strokeWidth: 1.5 },
-      })),
+      s.transitions.map((t, idx) => {
+        const from = statusOf(s.id);
+        const to = statusOf(t.target);
+        const pathDone = from === "completed" && to === "completed";
+        const leadsToBlock = to === "blocked" || to === "failed";
+        const fromActive = s.id === activeId;
+        const color = leadsToBlock
+          ? "var(--error)"
+          : pathDone
+            ? "var(--success)"
+            : fromActive
+              ? "var(--primary)"
+              : "rgb(var(--text-muted) / 0.4)";
+        return {
+          id: `${s.id}->${t.target}-${idx}`,
+          source: s.id,
+          target: t.target,
+          animated: fromActive && !leadsToBlock,
+          type: "default",
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 14,
+            height: 14,
+            color,
+          },
+          style: {
+            stroke: color,
+            strokeWidth: fromActive ? 2 : pathDone ? 1.8 : 1.25,
+            strokeDasharray: leadsToBlock ? "5 4" : undefined,
+          },
+        };
+      }),
     );
     return { nodes, edges };
   }, [workflow]);
@@ -70,21 +93,21 @@ export function WorkflowGraph({ workflow }: WorkflowGraphProps) {
   const nodeTypes = useMemo(() => ({ stateNode: StateNode }), []);
 
   return (
-    <div className="h-full w-full">
+    <div className={`h-full w-full ${className}`}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
-        minZoom={0.3}
-        maxZoom={1.5}
+        fitViewOptions={{ padding: 0.18, maxZoom: 1 }}
+        minZoom={0.28}
+        maxZoom={1.4}
         nodesConnectable={false}
         elementsSelectable={false}
         panOnScroll
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="var(--border)" />
+        <Background variant={BackgroundVariant.Dots} gap={26} size={1.1} color="rgb(var(--text-muted) / 0.22)" />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>

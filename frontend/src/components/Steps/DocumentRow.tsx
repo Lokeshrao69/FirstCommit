@@ -1,132 +1,187 @@
-import { useRef, type DragEvent } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, UploadCloud } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleDashed,
+  FileCheck2,
+  UploadCloud,
+  XCircle,
+} from "lucide-react";
 import type { DocumentUploadResult } from "@/types";
-import { Button } from "@/components/ui/Button";
-import { humanise } from "@/utils/workflow";
+import { VerificationBadge } from "@/components/ui/StatusBadge";
+
+/** The stages a file passes through once dropped. Mirrors the pipeline. */
+const STAGES = ["Collecting", "Classifying", "Extracting", "Validating"] as const;
+
+function useStage(busy: boolean): number {
+  const [stage, setStage] = useState(0);
+  const start = useRef<number | null>(null);
+  useEffect(() => {
+    if (!busy) {
+      start.current = null;
+      setStage(0);
+      return;
+    }
+    start.current = performance.now();
+    const id = window.setInterval(() => {
+      const elapsed = performance.now() - (start.current ?? 0);
+      setStage(Math.min(STAGES.length - 1, Math.floor(elapsed / 350)));
+    }, 120);
+    return () => window.clearInterval(id);
+  }, [busy]);
+  return stage;
+}
 
 interface DocumentRowProps {
+  index: number;
   label: string;
+  inputId: string;
   checking: boolean;
   checked: boolean;
   problemText: string | null;
   apiResult: DocumentUploadResult | null;
-  inputId: string;
+  selected: boolean;
+  onSelect: () => void;
   onFile: (file: File) => void;
 }
 
 export function DocumentRow({
+  index,
   label,
+  inputId,
   checking,
   checked,
   problemText,
   apiResult,
-  inputId,
+  selected,
+  onSelect,
   onFile,
 }: DocumentRowProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const stage = useStage(checking);
+  const verdict = apiResult?.validation_status ?? null;
 
-  const onDrop = (e: DragEvent<HTMLLIElement>) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) onFile(file);
-  };
+  const doneState = !checking && apiResult
+    ? verdict === "block"
+      ? "error"
+      : verdict === "needs_review"
+        ? "warning"
+        : "ok"
+    : checked
+      ? "ok"
+      : "idle";
 
   return (
     <li
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={onDrop}
-      className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center ${
-        checked ? "bg-success/5" : ""
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      aria-pressed={selected}
+      className={`group cursor-pointer rounded-container border bg-surface transition-colors ${
+        selected ? "border-primary/50 shadow-ember" : "border-border hover:border-border-strong"
       }`}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span
-          aria-hidden="true"
-          className={`grid h-8 w-8 shrink-0 place-items-center rounded-control ${
-            checking
-              ? "bg-surface text-muted"
-              : checked
-                ? "bg-success/15 text-success"
-                : "bg-surface text-muted"
-          }`}
-        >
-          {checking ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : checked ? (
-            <CheckCircle2 size={16} />
-          ) : (
-            <UploadCloud size={16} />
-          )}
+      <div className="flex items-center gap-3 px-4 py-3">
+        <span className="ff-num shrink-0 font-mono text-[11px] text-faint">
+          {String(index + 1).padStart(2, "0")}
         </span>
-        <div className="min-w-0">
-          <p className="font-medium text-text">{label}</p>
-          <p aria-live="polite" className="text-small text-muted">
-            {checking ? "Checking…" : checked ? "Checked" : problemText ? "" : ""}
-          </p>
-        </div>
-      </div>
+        <span className="grid min-w-0 flex-1 items-center gap-0.5">
+          <span className="truncate text-[13px] font-semibold text-text">{label}</span>
+          <span className="text-[11px] text-faint">
+            {checked
+              ? "collected and verified"
+              : checking
+                ? "processing…"
+                : "required — upload a file"}
+          </span>
+        </span>
 
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {problemText && (
-          <span className="inline-flex items-center gap-1 text-small text-warning">
-            <AlertTriangle size={14} aria-hidden="true" />
-            {problemText}
+        {checking ? (
+          <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-primary">
+            <CircleDashed size={11} className="animate-spin" aria-hidden="true" />
+            {STAGES[stage]}
+          </span>
+        ) : (
+          <span aria-hidden="true" className="flex shrink-0 items-center gap-1">
+            {doneState === "ok" && <CheckCircle2 size={16} className="text-success" />}
+            {doneState === "warning" && <AlertTriangle size={16} className="text-warning" />}
+            {doneState === "error" && <XCircle size={16} className="text-error" />}
+            {doneState === "idle" && <FileCheck2 size={16} className="text-muted/50" />}
           </span>
         )}
-        {checked ? (
-          <>
-            {apiResult && Object.keys(apiResult.extracted_fields).length > 0 && (
-              <details className="group">
-                <summary className="list-none cursor-pointer rounded-control px-2 py-1 text-small font-medium text-primary transition-colors hover:bg-primary/5 [&::-webkit-details-marker]:hidden">
-                  Show details
-                </summary>
-                <dl className="mt-1">
-                  {Object.entries(apiResult.extracted_fields).map(([key, field]) => (
-                    <div
-                      key={key}
-                      className="flex items-baseline justify-between gap-4 border-t border-border py-1.5"
-                    >
-                      <dt className="text-small text-muted">{humanise(key)}</dt>
-                      <dd className="text-small font-medium text-text">
-                        {field.value}
-                        <span className="ml-1 text-muted">
-                          {Math.round(field.confidence * 100)}%
-                        </span>
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </details>
-            )}
-            <Button variant="tertiary" size="sm" onClick={() => inputRef.current?.click()}>
-              Replace
-            </Button>
-          </>
-        ) : (
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={checking}
-            onClick={() => inputRef.current?.click()}
-          >
-            Upload file
-          </Button>
-        )}
+
+        <label
+          htmlFor={inputId}
+          className={`shrink-0 rounded-control border font-mono text-[11px] font-medium transition-colors ${
+            checking
+              ? "pointer-events-none border-border text-faint"
+              : doneState === "error"
+                ? "border-error/40 text-error hover:bg-error/10"
+                : "border-border-strong text-muted hover:border-primary/50 hover:text-primary"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="flex items-center gap-1 px-2.5 py-1.5">
+            <UploadCloud size={12} aria-hidden="true" />
+            {checked || apiResult ? (doneState === "error" ? "Replace" : "Update") : "Add"}
+          </span>
+        </label>
+        <input
+          id={inputId}
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg"
+          className="sr-only"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onFile(file);
+            e.target.value = "";
+          }}
+        />
       </div>
 
-      <input
-        ref={inputRef}
-        id={inputId}
-        type="file"
-        accept=".pdf,.png,.jpg,.jpeg"
-        className="sr-only"
-        aria-label={`Upload ${label}`}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onFile(file);
-          e.target.value = "";
-        }}
-      />
+      {checking && (
+        <div className="px-4 pb-3" aria-live="polite">
+          <div className="flex items-center gap-1.5">
+            {STAGES.map((s, i) => (
+              <div
+                key={s}
+                className={`h-1 flex-1 rounded-full transition-colors ${
+                  i <= stage ? "bg-primary" : "bg-surface-3"
+                }`}
+              />
+            ))}
+          </div>
+          <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-primary">
+            {STAGES[stage]}… <span className="text-faint">keeping original safe</span>
+          </p>
+        </div>
+      )}
+
+      {!checking && apiResult && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-4 py-2">
+          {apiResult.classification && (
+            <span className="font-mono text-[11px] text-faint">
+              {apiResult.filename}
+            </span>
+          )}
+          {apiResult.confidence != null && (
+            <span className="ff-num font-mono text-[11px] text-faint">
+              match {Math.round(apiResult.confidence * 100)}%
+            </span>
+          )}
+          <VerificationBadge status={verdict} />
+          {problemText && (
+            <span className="text-[11px] text-error" role="alert">
+              {problemText}
+            </span>
+          )}
+        </div>
+      )}
     </li>
   );
 }

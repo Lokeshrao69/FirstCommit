@@ -13,10 +13,10 @@ export interface LayoutPos {
   y: number;
 }
 
-const NODE_W = 240;
-const NODE_H = 104;
-const COL_GAP = 96;
-const ROW_GAP = 48;
+const NODE_W = 248;
+const NODE_H = 112;
+const COL_GAP = 92;
+const ROW_GAP = 44;
 
 export function layout(states: WorkflowState[], initial: string): LayoutPos[] {
   const byId = new Map(states.map((s) => [s.id, s]));

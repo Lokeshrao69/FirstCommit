@@ -11,9 +11,9 @@ interface InlineAlertProps {
 
 const styles: Record<Tone, { box: string; icon: string; title: string }> = {
   info: { box: "border-border bg-surface", icon: "text-muted", title: "text-text" },
-  success: { box: "border-success/40 bg-success/5", icon: "text-success", title: "text-success" },
-  warning: { box: "border-warning/40 bg-warning-bg", icon: "text-warning", title: "text-warning" },
-  error: { box: "border-error/40 bg-error-bg", icon: "text-error", title: "text-error" },
+  success: { box: "border-success/35 bg-success/10", icon: "text-success", title: "text-success" },
+  warning: { box: "border-warning/35 bg-warning/10", icon: "text-warning", title: "text-warning" },
+  error: { box: "border-error/40 bg-error/10", icon: "text-error", title: "text-error" },
 };
 
 const icons: Record<Tone, typeof Info> = {

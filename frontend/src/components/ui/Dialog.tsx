@@ -11,7 +11,7 @@ interface DialogProps {
 }
 
 /** Accessible modal dialog: focus trap, Escape to close, focus restored on
- *  close. Used for the "View as diagram" view. */
+ *  close. Redesigned for the dark console (hairline border, deep overlay). */
 export function Dialog({ open, onClose, title, children, wide }: DialogProps) {
   const trapRef = useFocusTrap<HTMLDivElement>(open);
 
@@ -28,7 +28,7 @@ export function Dialog({ open, onClose, title, children, wide }: DialogProps) {
 
   return (
     <div
-      className="animate-backdrop fixed inset-0 z-50 grid place-items-center bg-text/40 p-4"
+      className="animate-backdrop fixed inset-0 z-50 grid place-items-center bg-black/70 p-4"
       onClick={onClose}
     >
       <div
@@ -38,22 +38,22 @@ export function Dialog({ open, onClose, title, children, wide }: DialogProps) {
         aria-label={title}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className={`animate-dialog flex w-full flex-col rounded-container border border-border bg-white shadow-overlay-lg outline-none ${
-          wide ? "h-[80vh] max-w-[90vw] sm:max-w-[1200px]" : "max-w-lg"
+        className={`animate-dialog flex w-full flex-col rounded-container border border-border-strong bg-surface shadow-overlay-lg outline-none ${
+          wide ? "h-[82vh] max-w-[90vw] sm:max-w-[1240px]" : "max-w-lg"
         }`}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-section font-semibold text-text">{title}</h2>
+          <h2 className="font-display text-section font-semibold tracking-tight text-text">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label={title ? `Close ${title}` : "Close dialog"}
-            className="rounded-control p-1.5 text-muted transition-colors hover:bg-surface hover:text-text"
+            className="rounded-control p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-text"
           >
             <X size={18} aria-hidden="true" />
           </button>
         </div>
-        <div className={`min-h-0 flex-1 ${wide ? "h-[calc(80vh-53px)]" : "overflow-y-auto p-5"}`}>
+        <div className={`min-h-0 flex-1 ${wide ? "h-[calc(82vh-53px)]" : "overflow-y-auto p-5"}`}>
           {children}
         </div>
       </div>
