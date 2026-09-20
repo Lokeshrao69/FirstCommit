@@ -312,7 +312,12 @@ export const mockApi = {
         return runValidation();
       }
       if (s.type === "human_approval") {
-        const granted = req.approval === true || req.acknowledge === true;
+        // final_approval is a separate gate from the review plateau: it can
+        // only be passed by the explicit submit stroke (approval:true), never
+        // inherited via a prior acknowledgment.
+        const needsKeyTurn = stateId === "final_approval";
+        const granted =
+          req.approval === true || (!needsKeyTurn && req.acknowledge === true);
         const rejected = req.approval === false || req.acknowledge === false;
         if (!granted && !rejected) {
           s.status = "active";
@@ -418,6 +423,10 @@ export const mockApi = {
     };
 
     const outcome = run(current.id);
+
+    // Persist this step's events so GET /audit (the refresh path) keeps every
+    // transition/approval/execution row, mirroring the live backend.
+    session.audit.push(...events);
 
     if (outcome.pause === "document_upload") {
       const docs = session.states.document_collection;

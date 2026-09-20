@@ -35,13 +35,14 @@ export interface FlowForgeApi {
 
 export type ApiMode = "mock" | "live";
 
-/** Resolve the API mode: per-load URL param (?api=live or ?api=mock) > build-time env > live backend. */
+/** Resolve the API mode: per-load URL param (?api=live or ?api=mock) > build-time env > offline mock. */
 export function resolveApiMode(): ApiMode {
   if (typeof window !== "undefined") {
     const fromUrl = new URLSearchParams(window.location.search).get("api");
     if (fromUrl === "live" || fromUrl === "mock") return fromUrl;
   }
-  return import.meta.env.VITE_USE_MOCK === "true" ? "mock" : "live";
+  const env = import.meta.env.VITE_USE_MOCK;
+  return env === "false" || env === "0" ? "live" : "mock";
 }
 
 export const API_BASE = (import.meta.env.VITE_API_BASE ?? "/api").replace(/\/$/, "");

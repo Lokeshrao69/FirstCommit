@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Check, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2, KeyRound, ShieldCheck } from "lucide-react";
 import type { WorkflowDetail } from "@/types";
 import { Button } from "@/components/ui/Button";
+import { Panel, Titlebar } from "@/components/ui/Panel";
 import { useStepHeading } from "@/hooks/useStepFocus";
 import { findRoot, orderedSteps } from "@/utils/workflow";
 import { fmtConfidence } from "@/utils/format";
@@ -25,85 +26,125 @@ export function SubmitStep({ detail, busy, onApprove, onCancel }: SubmitStepProp
   }, [detail]);
 
   const validation = detail.validation;
+  const verified = validation?.status === "pass";
 
   return (
-    <section>
-      <h1 ref={headingRef} tabIndex={-1} className="text-title font-semibold text-text outline-none">
-        Submit your application
-      </h1>
-      <p className="mt-2 text-body text-muted">One last look before anything is sent.</p>
-
-      <ul className="ff-list mt-5">
-        {checklist.map((s) => (
-          <li key={s.id} className="flex items-center gap-3 px-4 py-3">
-            <span
-              aria-hidden="true"
-              className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-success text-white"
-            >
-              <Check size={14} />
-            </span>
-            <span className="font-medium text-text">{s.label}</span>
-          </li>
-        ))}
-        {validation && (
-          <li className="flex items-center gap-3 px-4 py-3">
-            <span
-              aria-hidden="true"
-              className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-white ${
-                validation.status === "pass" ? "bg-success" : "bg-warning"
-              }`}
-            >
-              {validation.status === "pass" ? (
-                <Check size={14} />
-              ) : (
-                <AlertTriangle size={14} />
-              )}
-            </span>
-            <span className="font-medium text-text">Documents verified</span>
-            <span className="ml-auto text-small text-muted">
-              {fmtConfidence(validation.confidence)}
-            </span>
-          </li>
-        )}
-      </ul>
-
-      <p className="mt-5 text-small text-muted">Nothing is sent until you click Submit.</p>
-
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
-        <Button
-          variant="primary"
-          className="order-1 w-full sm:order-2 sm:w-auto"
-          disabled={busy}
-          onClick={onApprove}
+    <section className="animate-rise mx-auto w-full max-w-3xl">
+      <header className="text-center">
+        <p className="ff-kicker-label">Submit · step 4 of 4</p>
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className="mt-1 font-display text-[26px] font-semibold tracking-tight text-text outline-none"
         >
-          {busy ? (
-            <>
-              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-              Submitting…
-            </>
-          ) : (
-            "Submit application"
-          )}
-        </Button>
-        {confirming ? (
-          <div className="order-2 flex gap-2 sm:order-1">
-            <Button variant="danger" onClick={onCancel}>
-              Yes, cancel
-            </Button>
-            <Button variant="secondary" onClick={() => setConfirming(false)}>
-              Keep editing
-            </Button>
+          Every gate passed. One gate left.
+        </h1>
+        <p className="mx-auto mt-1.5 max-w-md text-body text-muted">
+          This is the white-key gate: the file is yours to approve. Nothing is sent
+          until you command it.
+        </p>
+      </header>
+
+      <div className="mt-8 grid gap-5 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Panel>
+          <Titlebar title="Run state" />
+          <ul className="divide-y divide-border">
+            {checklist.map((s) => (
+              <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-success/40 bg-success/10"
+                >
+                  <Check size={11} className="text-success" strokeWidth={3} />
+                </span>
+                <span className="text-[13px] font-medium text-text">{s.label}</span>
+              </li>
+            ))}
+            {validation && (
+              <li className="flex items-center gap-3 px-4 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${
+                    verified
+                      ? "border-success/40 bg-success/10"
+                      : "border-warning/40 bg-warning/10"
+                  }`}
+                >
+                  {verified ? (
+                    <Check size={11} className="text-success" strokeWidth={3} />
+                  ) : (
+                    <AlertTriangle size={11} className="text-warning" />
+                  )}
+                </span>
+                <span className="text-[13px] font-medium text-text">Documents validated</span>
+                <span className="ff-num ml-auto font-mono text-[11px] text-faint">
+                  {fmtConfidence(validation.confidence)}
+                </span>
+              </li>
+            )}
+          </ul>
+          <div className="flex items-center gap-2 border-t border-border px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-faint">
+            <ShieldCheck size={12} aria-hidden="true" />
+            verified end-to-end · {detail.progress.completed}/{detail.progress.total} milestones
           </div>
-        ) : (
-          <Button
-            variant="dangerText"
-            className="order-2 w-full sm:order-1 sm:w-auto"
-            disabled={busy}
-            onClick={() => setConfirming(true)}
-          >
-            Cancel application
-          </Button>
-        )}
+        </Panel>
+
+        {/* The white key */}
+        <div className="flex flex-col">
+          <Panel>
+            <Titlebar title="The white key" right={!busy ? null : <Loader2 size={13} className="animate-spin text-primary" aria-hidden="true" />} />
+            <div className="flex flex-col items-center gap-3 p-5">
+              <span className="grid h-12 w-12 place-items-center rounded-container border border-primary/40 bg-primary/10 text-primary shadow-ember">
+                <KeyRound size={20} aria-hidden="true" />
+              </span>
+              <p className="text-center font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+                AI planned · engine validated · you hold the key
+              </p>
+              <p className="text-center text-small text-muted">
+                Approve this run. Nothing was sent until now — the engine issues a
+                confirmation receipt and the run executes.
+              </p>
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                disabled={busy}
+                onClick={onApprove}
+              >
+                {busy ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                    Turning the key…
+                  </>
+                ) : (
+                  "Submit application"
+                )}
+              </Button>
+            </div>
+          </Panel>
+
+          <div className="mt-3">
+            {confirming ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button variant="danger" className="flex-1" onClick={onCancel}>
+                  Yes, cancel
+                </Button>
+                <Button variant="secondary" className="flex-1" onClick={() => setConfirming(false)}>
+                  Keep editing
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                className="w-full"
+                disabled={busy}
+                onClick={() => setConfirming(true)}
+              >
+                Cancel application instead
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );

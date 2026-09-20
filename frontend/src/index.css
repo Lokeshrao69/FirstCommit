@@ -4,18 +4,33 @@
 
 @layer base {
   :root {
-    --bg: 255 255 255;
-    --surface: 246 247 249;
-    --border: 226 229 234;
-    --text: 27 34 48;
-    --text-muted: 90 100 117;
-    --primary: 15 92 77;
-    --primary-hover: 11 74 62;
-    --success: 15 122 85;
-    --warning: 154 91 0;
-    --warning-bg: 255 246 229;
-    --error: 180 35 24;
-    --error-bg: 254 241 240;
+    /* Forged instrument console — warm dark (RGB triples for Tailwind alpha) */
+    --bg: 14 14 13;
+    --surface: 22 21 19;
+    --surface-2: 30 29 26;
+    --surface-3: 38 36 32;
+    --border: 40 38 34;
+    --border-strong: 58 53 45;
+    --text: 237 232 223;
+    --text-muted: 170 164 154;
+    --text-faint: 128 122 112;
+
+    /* Ember (work / live) */
+    --primary: 255 106 51;
+    --primary-hover: 255 124 74;
+
+    /* Violet — AI system markers */
+    --accent: 158 140 255;
+
+    /* Semantic status (never decorative) */
+    --success: 86 189 138;
+    --success-bg: 17 34 26;
+    --warning: 232 178 60;
+    --warning-bg: 35 28 13;
+    --error: 232 88 68;
+    --error-bg: 36 18 16;
+
+    --on-accent: 23 22 20;
   }
 
   html,
@@ -27,26 +42,67 @@
   body {
     @apply bg-bg font-sans text-text antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    color-scheme: dark;
+  }
+
+  ::selection {
+    background: rgb(var(--primary) / 0.28);
+    color: rgb(var(--text));
   }
 
   :where(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid rgb(var(--primary) / 0.85);
     outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Everything the theme owns but the system draws: get themed from tokens */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-muted/25;
+    border: 2px solid rgb(var(--bg));
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted/40;
   }
 }
 
-/* Motion: the only animations left respond to a user action (drawer slide,
-   dialog fade) or a document row switching to "Checked". Everything is gated
-   behind a prefers-reduced-motion check. */
+/* --- Motion ---
+   One orchestrated vocabulary, every entry gated behind
+   prefers-reduced-motion. Motion answers "what changed?", nothing else. */
 @media (prefers-reduced-motion: no-preference) {
   .animate-backdrop {
     animation: ff-fade 150ms ease-out;
   }
   .animate-dialog {
-    animation: ff-dialog 150ms ease-out;
+    animation: ff-dialog 160ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   .animate-drawer {
-    animation: ff-drawer 200ms ease-out;
+    animation: ff-slide 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .animate-rise {
+    animation: ff-rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-fade {
+    animation: ff-fade 200ms ease-out both;
+  }
+  .animate-swap {
+    animation: ff-swap 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-pulse-ember {
+    animation: ff-pulse 1.8s ease-in-out infinite;
+  }
+  .animate-pop {
+    animation: ff-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-attention {
+    animation: ff-attention 220ms ease-out 1;
   }
 }
 
@@ -57,6 +113,7 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -69,18 +126,40 @@
   }
 }
 
-@keyframes ff-dialog {
+@keyframes ff-rise {
   from {
     opacity: 0;
-    transform: scale(0.98);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 
-@keyframes ff-drawer {
+@keyframes ff-swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ff-dialog {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes ff-slide {
   from {
     transform: translateX(100%);
   }
@@ -89,11 +168,68 @@
   }
 }
 
+@keyframes ff-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes ff-runner {
+  to {
+    transform: translateX(-200%);
+  }
+}
+
+@keyframes ff-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ff-attention {
+  0% {
+    box-shadow: 0 0 0 0 rgb(var(--error) / 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgb(var(--error) / 0);
+  }
+}
+
 @layer components {
-  /* Containers: document list, checklist, summary share one bordered surface.
-     Not floating cards. */
+  /* Bordered plane — the console's default container. Not a floating card. */
+  .ff-panel {
+    @apply overflow-hidden rounded-container border border-border bg-surface;
+  }
+
+  .ff-titlebar {
+    @apply flex items-center justify-between gap-3 border-b border-border px-4 py-3;
+  }
+
+  /* Inset well for content that sits "inside" a plane */
+  .ff-well {
+    @apply rounded-control border border-border bg-bg/60;
+  }
+
+  .ff-kicker-label {
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-muted;
+  }
+
+  .ff-hairline {
+    @apply border-border;
+  }
+
+  /* Wait: divider utility used by lists */
   .ff-list {
-    @apply divide-y divide-border overflow-hidden rounded-container border border-border bg-white;
+    @apply divide-y divide-border overflow-hidden rounded-container border border-border bg-surface;
   }
 
   .ff-row {
@@ -101,7 +237,7 @@
   }
 
   .ff-field {
-    @apply w-full rounded-control border border-border bg-white px-3 py-2 text-body text-text outline-none transition-colors placeholder:text-muted/70 focus:border-primary focus:ring-2 focus:ring-primary/25;
+    @apply w-full rounded-control border border-border bg-surface-2 px-3.5 py-2.5 text-body text-text outline-none transition-colors placeholder:text-faint focus:border-primary/70 focus:ring-2 focus:ring-primary/20;
   }
 
   fieldset:disabled .ff-field,
@@ -115,29 +251,36 @@
   }
 }
 
-/* --- React Flow (light canvas) --- */
+/* --- Tabular instrument text --- */
+.ff-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* --- React Flow (dark console canvas) --- */
 .react-flow__attribution {
-  filter: grayscale(1) opacity(0.4);
+  filter: grayscale(1) opacity(0.35);
 }
 
 .react-flow__controls {
-  @apply overflow-hidden rounded-control border border-border bg-white shadow-overlay;
+  @apply overflow-hidden rounded-control border border-border bg-surface shadow-overlay;
 }
 
 .react-flow__controls-button {
-  @apply !border-border !bg-white !fill-text !text-text hover:!bg-surface;
+  @apply !border-border !bg-surface !fill-text !text-text hover:!bg-surface-2;
 }
 
 .react-flow__edge.ff-edge-active {
   stroke-width: 2;
 }
 
-/* Slim scrollbars for the activity drawer */
+/* Slim scrollbars used by drawers/timelines */
 .slim-scroll::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 .slim-scroll::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-muted/40;
+  @apply rounded-full bg-muted/30;
 }
 .slim-scroll::-webkit-scrollbar-track {
   background: transparent;
