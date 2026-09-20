@@ -68,7 +68,9 @@ def test_every_service_template_is_schema_valid(catalog):
                 type=StateType(s["type"]),
                 description=s.get("description", ""),
                 required_documents=list(s.get("required_documents", [])),
-                transitions=[Transition(target=t["target"], condition=t["condition"]) for t in s.get("transitions", [])],
+                transitions=[
+                    Transition(target=t["target"], condition=t["condition"]) for t in s.get("transitions", [])
+                ],
             )
             for s in tmpl["states"]
         ]
@@ -183,11 +185,15 @@ def test_engine_blocks_when_income_certificate_expired():
     collected = {
         "aadhaar": make_doc("aadhaar", full_name="S. Priya", aadhaar_number="234567890123", date_of_birth="18-06-2005"),
         "marks_memo": make_doc("marks_memo", full_name="S. Priya", examination="VI Semester", percentage="82"),
-        "bonafide_certificate": make_doc("bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"),
-"income_certificate": make_doc(
+        "bonafide_certificate": make_doc(
+            "bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"
+        ),
+        "income_certificate": make_doc(
             "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-12-2025"
         ),
-        "bank_passbook": make_doc("bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"),
+        "bank_passbook": make_doc(
+            "bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"
+        ),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.BLOCK
@@ -199,7 +205,9 @@ def test_engine_blocks_when_income_exceeds_ceiling():
     collected = {
         "aadhaar": make_doc("aadhaar", full_name="S. Priya", aadhaar_number="234567890123", date_of_birth="18-06-2005"),
         "marks_memo": make_doc("marks_memo", full_name="S. Priya", examination="VI Semester", percentage="82"),
-        "bonafide_certificate": make_doc("bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"),
+        "bonafide_certificate": make_doc(
+            "bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"
+        ),
         "income_certificate": make_doc(
             "income_certificate", full_name="S. Priya", annual_family_income="Rs. 3,20,000", valid_until="31-03-2027"
         ),
@@ -214,7 +222,9 @@ def test_engine_blocks_when_field_unreadable():
     collected = {
         "aadhaar": make_doc("aadhaar", full_name="S. Priya", aadhaar_number="234567890123", date_of_birth="18-06-2005"),
         "marks_memo": make_doc("marks_memo", full_name="S. Priya", examination="VI Semester"),
-        "bonafide_certificate": make_doc("bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"),
+        "bonafide_certificate": make_doc(
+            "bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"
+        ),
         "income_certificate": make_doc(
             "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-03-2027"
         ),
@@ -229,11 +239,15 @@ def test_engine_passes_clean_application():
     collected = {
         "aadhaar": make_doc("aadhaar", full_name="S. Priya", aadhaar_number="234567890123", date_of_birth="18-06-2005"),
         "marks_memo": make_doc("marks_memo", full_name="S. Priya", examination="VI Semester", percentage="82"),
-        "bonafide_certificate": make_doc("bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"),
+        "bonafide_certificate": make_doc(
+            "bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"
+        ),
         "income_certificate": make_doc(
             "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-03-2027"
         ),
-        "bank_passbook": make_doc("bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"),
+        "bank_passbook": make_doc(
+            "bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"
+        ),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.PASS
@@ -244,7 +258,9 @@ def test_engine_blocks_on_unrelated_name_mismatch():
     collected = {
         "aadhaar": make_doc("aadhaar", full_name="S. Priya", aadhaar_number="234567890123", date_of_birth="18-06-2005"),
         "marks_memo": make_doc("marks_memo", full_name="S. Priya", examination="VI Semester", percentage="82"),
-        "bonafide_certificate": make_doc("bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"),
+        "bonafide_certificate": make_doc(
+            "bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"
+        ),
         "income_certificate": make_doc(
             "income_certificate", full_name="Sita Raju", annual_family_income="Rs. 1,50,000", valid_until="31-03-2027"
         ),
@@ -257,13 +273,26 @@ def test_engine_blocks_on_unrelated_name_mismatch():
 def test_engine_warns_on_close_spelling_name_mismatch():
     service, doc_types = catalog_for("post_matric_scholarship")
     collected = {
-        "aadhaar": make_doc("aadhaar", full_name="Alex Rivera", aadhaar_number="234567890123", date_of_birth="18-06-2005"),
-        "marks_memo": make_doc("marks_memo", full_name="Alexander Rivera", examination="VI Semester", percentage="82"),
-        "bonafide_certificate": make_doc("bonafide_certificate", full_name="Alexander Rivera", institution="Uni", course="BSc", issued_date="10-07-2026"),
-        "income_certificate": make_doc(
-            "income_certificate", full_name="Alexander Rivera", annual_family_income="Rs. 1,80,000", valid_until="31-03-2027"
+        "aadhaar": make_doc(
+            "aadhaar", full_name="Alex Rivera", aadhaar_number="234567890123", date_of_birth="18-06-2005"
         ),
-        "bank_passbook": make_doc("bank_passbook", full_name="Alexander Rivera", account_number="9988776655443322", ifsc_code="FICB0001234"),
+        "marks_memo": make_doc("marks_memo", full_name="Alexander Rivera", examination="VI Semester", percentage="82"),
+        "bonafide_certificate": make_doc(
+            "bonafide_certificate",
+            full_name="Alexander Rivera",
+            institution="Uni",
+            course="BSc",
+            issued_date="10-07-2026",
+        ),
+        "income_certificate": make_doc(
+            "income_certificate",
+            full_name="Alexander Rivera",
+            annual_family_income="Rs. 1,80,000",
+            valid_until="31-03-2027",
+        ),
+        "bank_passbook": make_doc(
+            "bank_passbook", full_name="Alexander Rivera", account_number="9988776655443322", ifsc_code="FICB0001234"
+        ),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.NEEDS_REVIEW
@@ -273,9 +302,15 @@ def test_engine_warns_on_close_spelling_name_mismatch():
 def test_engine_blocks_pension_applicant_below_age_floor():
     service, doc_types = catalog_for("old_age_pension")
     collected = {
-        "aadhaar": make_doc("aadhaar", full_name="K. Subba Rao", aadhaar_number="456789012345", date_of_birth="15-04-1998"),
-        "ration_card": make_doc("ration_card", ration_card_number="RC-1", household_head_name="K. Subba Rao", category="BPL"),
-        "bank_passbook": make_doc("bank_passbook", full_name="K. Subba Rao", account_number="1042568877914560", ifsc_code="FICB0001234"),
+        "aadhaar": make_doc(
+            "aadhaar", full_name="K. Subba Rao", aadhaar_number="456789012345", date_of_birth="15-04-1998"
+        ),
+        "ration_card": make_doc(
+            "ration_card", ration_card_number="RC-1", household_head_name="K. Subba Rao", category="BPL"
+        ),
+        "bank_passbook": make_doc(
+            "bank_passbook", full_name="K. Subba Rao", account_number="1042568877914560", ifsc_code="FICB0001234"
+        ),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.BLOCK
@@ -285,9 +320,15 @@ def test_engine_blocks_pension_applicant_below_age_floor():
 def test_engine_blocks_pension_applicant_wrong_category():
     service, doc_types = catalog_for("old_age_pension")
     collected = {
-        "aadhaar": make_doc("aadhaar", full_name="K. Subba Rao", aadhaar_number="456789012345", date_of_birth="15-04-1958"),
-        "ration_card": make_doc("ration_card", ration_card_number="RC-1", household_head_name="K. Subba Rao", category="APL"),
-        "bank_passbook": make_doc("bank_passbook", full_name="K. Subba Rao", account_number="1042568877914560", ifsc_code="FICB0001234"),
+        "aadhaar": make_doc(
+            "aadhaar", full_name="K. Subba Rao", aadhaar_number="456789012345", date_of_birth="15-04-1958"
+        ),
+        "ration_card": make_doc(
+            "ration_card", ration_card_number="RC-1", household_head_name="K. Subba Rao", category="APL"
+        ),
+        "bank_passbook": make_doc(
+            "bank_passbook", full_name="K. Subba Rao", account_number="1042568877914560", ifsc_code="FICB0001234"
+        ),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.BLOCK
@@ -297,9 +338,15 @@ def test_engine_blocks_pension_applicant_wrong_category():
 def test_engine_passes_pension_applicant():
     service, doc_types = catalog_for("old_age_pension")
     collected = {
-        "aadhaar": make_doc("aadhaar", full_name="K. Subba Rao", aadhaar_number="456789012345", date_of_birth="15-04-1958"),
-        "ration_card": make_doc("ration_card", ration_card_number="RC-1", household_head_name="K. Subba Rao", category="BPL"),
-        "bank_passbook": make_doc("bank_passbook", full_name="K. Subba Rao", account_number="1042568877914560", ifsc_code="FICB0001234"),
+        "aadhaar": make_doc(
+            "aadhaar", full_name="K. Subba Rao", aadhaar_number="456789012345", date_of_birth="15-04-1958"
+        ),
+        "ration_card": make_doc(
+            "ration_card", ration_card_number="RC-1", household_head_name="K. Subba Rao", category="BPL"
+        ),
+        "bank_passbook": make_doc(
+            "bank_passbook", full_name="K. Subba Rao", account_number="1042568877914560", ifsc_code="FICB0001234"
+        ),
     }
     result = validate_application(service, doc_types, collected)
     assert result.status == ValidationStatus.PASS
@@ -345,11 +392,15 @@ def _clean_post_matric_docs() -> dict[str, DocumentRecord]:
     return {
         "aadhaar": make_doc("aadhaar", full_name="S. Priya", aadhaar_number="234567890123", date_of_birth="18-06-2005"),
         "marks_memo": make_doc("marks_memo", full_name="S. Priya", examination="VI Semester", percentage="82"),
-        "bonafide_certificate": make_doc("bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"),
+        "bonafide_certificate": make_doc(
+            "bonafide_certificate", full_name="S. Priya", institution="Uni", course="BSc", issued_date="10-07-2026"
+        ),
         "income_certificate": make_doc(
             "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-03-2027"
         ),
-        "bank_passbook": make_doc("bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"),
+        "bank_passbook": make_doc(
+            "bank_passbook", full_name="S. Priya", account_number="9988776655443322", ifsc_code="FICB0001234"
+        ),
     }
 
 
@@ -368,9 +419,7 @@ def test_handler_blocks_on_hard_rule(provider):
     docs["income_certificate"] = make_doc(
         "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-12-2025"
     )
-    step = _handler(provider, settings, "post_matric_scholarship")(
-        _state(), ExecutionContext(collected_documents=docs)
-    )
+    step = _handler(provider, settings, "post_matric_scholarship")(_state(), ExecutionContext(collected_documents=docs))
     assert step.data["status"] == "block"
 
 
@@ -400,9 +449,7 @@ def test_advisory_cannot_unblock_a_deterministic_block(provider):
     docs["income_certificate"] = make_doc(
         "income_certificate", full_name="S. Priya", annual_family_income="Rs. 1,80,000", valid_until="31-12-2025"
     )
-    step = _handler(Low(), settings, "post_matric_scholarship")(
-        _state(), ExecutionContext(collected_documents=docs)
-    )
+    step = _handler(Low(), settings, "post_matric_scholarship")(_state(), ExecutionContext(collected_documents=docs))
     assert step.data["status"] == "block"
 
 
@@ -423,12 +470,22 @@ def test_eligibility_is_deterministic():
         "expected_graduation": {"operator": "gte", "value": 2025},
     }
     ok, _ = check_eligibility(
-        {"cumulative_gpa": 3.72, "current_semester_gpa": 3.7, "enrollment_status": "full-time", "expected_graduation": 2027},
+        {
+            "cumulative_gpa": 3.72,
+            "current_semester_gpa": 3.7,
+            "enrollment_status": "full-time",
+            "expected_graduation": 2027,
+        },
         reqs,
     )
     assert ok
     bad, _ = check_eligibility(
-        {"cumulative_gpa": 2.8, "current_semester_gpa": 3.7, "enrollment_status": "full-time", "expected_graduation": 2027},
+        {
+            "cumulative_gpa": 2.8,
+            "current_semester_gpa": 3.7,
+            "enrollment_status": "full-time",
+            "expected_graduation": 2027,
+        },
         reqs,
     )
     assert not bad

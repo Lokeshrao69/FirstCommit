@@ -37,7 +37,7 @@ SCHOLARSHIP_CLASSIFICATIONS = sorted(
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
-    override_settings({**os.environ, "DEMO_MODE": "true", "CORS_ORIGINS": "[\"http://localhost:5173\"]"})
+    override_settings({**os.environ, "DEMO_MODE": "true", "CORS_ORIGINS": '["http://localhost:5173"]'})
     get_services.cache_clear()
     app = FastAPI()
     app.include_router(router)
@@ -181,7 +181,10 @@ def test_hard_rule_blocks_and_retains_documents(client):
     detail = client.get(f"/workflows/{wid}").json()
     assert detail["collected_documents"] == SCHOLARSHIP_CLASSIFICATIONS
     # a finished workflow no longer accepts documents or advances
-    assert client.post(f"/workflows/{wid}/documents", files={"file": ("aadhaar.pdf", b"x", "application/pdf")}).status_code == 409
+    assert (
+        client.post(f"/workflows/{wid}/documents", files={"file": ("aadhaar.pdf", b"x", "application/pdf")}).status_code
+        == 409
+    )
     assert client.post(f"/workflows/{wid}/advance", json={}).status_code == 409
 
 
