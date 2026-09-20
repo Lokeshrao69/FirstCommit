@@ -1,0 +1,128 @@
+{
+  "catalog": "sarkari-go — Indian government documents",
+  "version": "1",
+  "description": "Fictional catalog of Indian government documents used by the demo. Field keys are shared with the extractors so a value extracted under one key can be validated by the deterministic rule engine.",
+  "document_types": [
+    {
+      "id": "aadhaar",
+      "name": "Aadhaar card",
+      "description": "Government-issued biometric identity card from the Unique Identification Authority of India (UIDAI). The 12-digit Aadhaar number is sensitive and is masked after extraction.",
+      "common_names": ["aadhaar", "aadhar", "uidai", "uid card", "identity card"],
+      "classification_signals": ["aadhaar", "uidai", "unique identification authority"],
+      "fields": [
+        {"key": "full_name", "label": "Full name", "type": "name"},
+        {"key": "date_of_birth", "label": "Date of birth", "type": "date"},
+        {"key": "gender", "label": "Gender", "type": "text"},
+        {"key": "address", "label": "Address", "type": "text"},
+        {"key": "aadhaar_number", "label": "Aadhaar number", "type": "number"}
+      ],
+      "required_fields": ["full_name", "aadhaar_number", "date_of_birth"],
+      "sensitive_fields": ["aadhaar_number"]
+    },
+    {
+      "id": "income_certificate",
+      "name": "Income certificate",
+      "description": "Certificate of annual family income issued by the revenue department / Mandal (Taluka) Revenue Officer. Validity is state-specific — the dates shown are illustrative for the demo.",
+      "common_names": ["income certificate", "aay praman patra", "income cert", "family income"],
+      "classification_signals": ["income certificate", "aay praman patra", "annual family income"],
+      "fields": [
+        {"key": "full_name", "label": "Name on certificate", "type": "name"},
+        {"key": "father_name", "label": "Father's / husband's name", "type": "name"},
+        {"key": "address", "label": "Address", "type": "text"},
+        {"key": "annual_family_income", "label": "Annual family income", "type": "amount"},
+        {"key": "income_reference_period", "label": "Income reference period", "type": "text"},
+        {"key": "issued_date", "label": "Date of issue", "type": "date"},
+        {"key": "valid_until", "label": "Valid until", "type": "date"},
+        {"key": "certificate_number", "label": "Certificate number", "type": "text"}
+      ],
+      "required_fields": ["full_name", "annual_family_income", "valid_until"],
+      "sensitive_fields": ["certificate_number"]
+    },
+    {
+      "id": "marks_memo",
+      "name": "Marks memo",
+      "description": "Marks memo/grade sheet from the university or board, used to verify the course, institution and academic performance.",
+      "common_names": ["marks memo", "marksheet", "marks sheet", "grade sheet", "transcript"],
+      "classification_signals": ["marks memo", "marksheet", "grade sheet", "result"],
+      "fields": [
+        {"key": "full_name", "label": "Student name", "type": "name"},
+        {"key": "father_name", "label": "Father's name", "type": "name"},
+        {"key": "date_of_birth", "label": "Date of birth", "type": "date"},
+        {"key": "board_or_university", "label": "Board / university", "type": "text"},
+        {"key": "institution", "label": "Institution", "type": "text"},
+        {"key": "examination", "label": "Examination", "type": "text"},
+        {"key": "year_of_passing", "label": "Year of passing", "type": "text"},
+        {"key": "roll_number", "label": "Roll number", "type": "text"},
+        {"key": "percentage", "label": "Percentage / CGPA", "type": "amount"},
+        {"key": "result", "label": "Result", "type": "text"}
+      ],
+      "required_fields": ["full_name", "examination", "percentage"],
+      "sensitive_fields": ["roll_number"]
+    },
+    {
+      "id": "bonafide_certificate",
+      "name": "Bonafide certificate",
+      "description": "Certificate from the institution confirming the student is enrolled there, showing the course and year of study.",
+      "common_names": ["bonafide", "bona fide certificate", "bonafide certificate"],
+      "classification_signals": ["bonafide", "bona fide"],
+      "fields": [
+        {"key": "full_name", "label": "Student name", "type": "name"},
+        {"key": "father_name", "label": "Father's name", "type": "name"},
+        {"key": "institution", "label": "Institution", "type": "text"},
+        {"key": "course", "label": "Course", "type": "text"},
+        {"key": "year_of_study", "label": "Year of study", "type": "text"},
+        {"key": "roll_number", "label": "Admission / roll number", "type": "text"},
+        {"key": "issued_date", "label": "Date of issue", "type": "date"}
+      ],
+      "required_fields": ["full_name", "institution", "course", "issued_date"],
+      "sensitive_fields": ["roll_number"]
+    },
+    {
+      "id": "bank_passbook",
+      "name": "Bank passbook",
+      "description": "Savings bank passbook page showing the account holder's name and account details, required so benefits can be transferred.",
+      "common_names": ["passbook", "bank passbook", "bank book"],
+      "classification_signals": ["passbook", "savings bank"],
+      "fields": [
+        {"key": "full_name", "label": "Account holder name", "type": "name"},
+        {"key": "account_number", "label": "Account number", "type": "number"},
+        {"key": "ifsc_code", "label": "IFSC code", "type": "text"},
+        {"key": "bank_name", "label": "Bank name", "type": "text"},
+        {"key": "branch", "label": "Branch", "type": "text"}
+      ],
+      "required_fields": ["full_name", "account_number", "ifsc_code"],
+      "sensitive_fields": ["account_number"]
+    },
+    {
+      "id": "ration_card",
+      "name": "Ration card",
+      "description": "Ration card issued under the Public Distribution System. The household category (BPL vs APL) is used for pension and welfare schemes.",
+      "common_names": ["ration card", "ration", "pds card"],
+      "classification_signals": ["ration card", "public distribution system", "pds"],
+      "fields": [
+        {"key": "ration_card_number", "label": "Ration card number", "type": "text"},
+        {"key": "household_head_name", "label": "Household head", "type": "name"},
+        {"key": "category", "label": "Category", "type": "text"},
+        {"key": "address", "label": "Address", "type": "text"}
+      ],
+      "required_fields": ["ration_card_number", "category", "household_head_name"],
+      "sensitive_fields": ["ration_card_number"]
+    },
+    {
+      "id": "income_self_declaration",
+      "name": "Income self-declaration",
+      "description": "Self-declaration of annual family income, used when applying for an income certificate.",
+      "common_names": ["self declaration", "income declaration", "self-declaration"],
+      "classification_signals": ["income self-declaration", "self declaration", "self-declaration", "declaration of annual income", "self-declared annual family income"],
+      "fields": [
+        {"key": "full_name", "label": "Full name", "type": "name"},
+        {"key": "father_name", "label": "Father's name", "type": "name"},
+        {"key": "address", "label": "Address", "type": "text"},
+        {"key": "annual_family_income", "label": "Self-declared annual family income", "type": "amount"},
+        {"key": "declaration_date", "label": "Date of declaration", "type": "date"}
+      ],
+      "required_fields": ["full_name", "annual_family_income", "declaration_date"],
+      "sensitive_fields": []
+    }
+  ]
+}

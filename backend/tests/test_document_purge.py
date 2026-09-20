@@ -24,12 +24,13 @@ from app.services.document_service import (
 )
 from app.storage.in_memory import InMemoryRepository
 
-GOAL = "I want to apply for the Merit Excellence Scholarship"
+GOAL = "I want to apply for the post matric scholarship"
 DOCS = [
-    ("transcript.pdf", b"%PDF-1.4 fictional transcript", "application/pdf"),
-    ("government_id.pdf", b"%PDF-1.4 fictional government id", "application/pdf"),
-    ("income_certificate.pdf", b"%PDF-1.4 fictional income certificate", "application/pdf"),
-    ("personal_essay.pdf", b"%PDF-1.4 fictional essay", "application/pdf"),
+    ("aadhaar.pdf", b"%PDF-1.4 fictional aadhaar", "application/pdf"),
+    ("income_certificate_valid.pdf", b"%PDF-1.4 fictional income certificate", "application/pdf"),
+    ("marks_memo.pdf", b"%PDF-1.4 fictional marks memo", "application/pdf"),
+    ("bonafide_certificate.pdf", b"%PDF-1.4 fictional bonafide", "application/pdf"),
+    ("bank_passbook_student.pdf", b"%PDF-1.4 fictional passbook", "application/pdf"),
 ]
 
 _DEMO_ENV = {
@@ -50,7 +51,6 @@ def _run_to_terminal(svc: Services, approve: bool) -> str:
     for name, content, mime in DOCS:
         svc.document_service.process_upload(wid, name, mime, content)
     svc.workflow_service.advance(wid, AdvanceWorkflowRequest())
-    svc.workflow_service.advance(wid, AdvanceWorkflowRequest(acknowledge=True))
     svc.workflow_service.advance(wid, AdvanceWorkflowRequest(approval=approve))
     return wid
 
@@ -167,11 +167,11 @@ def test_purge_workflow_documents_marks_records():
         service.process_upload("wf_x", name, mime, content)
         for name, content, mime in DOCS
     ]
-    assert len(store._blobs) == 4
+    assert len(store._blobs) == len(DOCS)
 
     purged = service.purge_workflow_documents("wf_x")
-    assert purged == 4
-    assert len(store.deleted) == 4
+    assert purged == len(DOCS)
+    assert len(store.deleted) == len(DOCS)
     assert list(store._blobs) == []
     for doc in docs:
         assert service._repo.get_document("wf_x", doc.document_id).purged_at is not None
@@ -184,6 +184,7 @@ def test_completion_purges_documents_and_audits():
     svc = _services()
     wid = _run_to_terminal(svc, approve=True)
 
+    assert svc.repo.get_workflow(wid).status.value == "completed"
     docs = svc.repo.list_documents(wid)
     assert len(docs) == len(DOCS)
     assert all(d.purged_at for d in docs)
@@ -193,18 +194,20 @@ def test_completion_purges_documents_and_audits():
     purge_events = [e for e in events if e.event_type == AuditEventType.DOCUMENTS_PURGED]
     assert len(purge_events) == 1
     assert purge_events[0].details["purged_count"] == len(DOCS)
+    assert purge_events[0].details["status"] == "completed"
 
 
-def test_cancellation_purges_documents():
+def test_cancelled_workflow_retains_documents_for_review():
     svc = _services()
     wid = _run_to_terminal(svc, approve=False)
 
     assert svc.repo.get_workflow(wid).status.value == "cancelled"
     docs = svc.repo.list_documents(wid)
-    assert all(d.purged_at for d in docs)
-    assert not getattr(svc.store, "_blobs", None)
+    assert len(docs) == len(DOCS)
+    assert all(d.purged_at is None for d in docs)
+    assert len(getattr(svc.store, "_blobs", {})) == len(DOCS)
     events = svc.repo.list_audit(wid)
-    assert any(e.event_type == AuditEventType.DOCUMENTS_PURGED for e in events)
+    assert not any(e.event_type == AuditEventType.DOCUMENTS_PURGED for e in events)
 
 
 def test_purge_can_be_disabled():

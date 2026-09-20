@@ -1,0 +1,134 @@
+{
+  "id": "old_age_pension",
+  "name": "Indira Gandhi National Old Age Pension (IGNOAPS)",
+  "short_name": "Old-age pension",
+  "description": "The national old-age pension for citizens aged 60 and above who belong to a BPL household. Payout is Rs 200 per month (age 60-79) and Rs 500 per month (age 80+) plus state top-ups. Doorstep, offline and online application channels exist.",
+  "keywords": [
+    "pension",
+    "old age",
+    "old-age",
+    "ignoaps",
+    "nsap",
+    "elders",
+    "senior citizen",
+    "social security",
+    "bpl"
+  ],
+  "sources": [
+    "https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc2025117686801.pdf",
+    "https://web.umang.gov.in/landing/scheme/detail/nsap-indira-gandhi-national-old-age-pension-scheme_nsap-ignoaps.html"
+  ],
+  "illustrative_rules": "The applicant must be at least 60 years old (verifiable from the Aadhaar date of birth) and belong to a BPL household (verifiable from the ration card category). The bank passbook must show the applicant's name so the pension can be credited. State top-ups vary by state.",
+  "notes": "The Rs 200 / Rs 500 monthly rates and the 60+ age criterion follow the central scheme. State-specific top-ups and application rules may differ.",
+  "process": {
+    "name": "Old-age pension application review",
+    "description": "Before the application is submitted for the pension, we check the applicant's age, the BPL status and the bank account details.",
+    "required_documents": ["aadhaar", "ration_card", "bank_passbook"],
+    "name_check": {
+      "description": "The applicant's name on the Aadhaar, ration card and passbook must refer to the same person."
+    },
+    "requirements": [
+      {
+        "kind": "min_age",
+        "name": "Minimum age",
+        "document": "aadhaar",
+        "field": "date_of_birth",
+        "value": 60,
+        "message": "The Aadhaar date of birth makes the applicant {{age}} years old. The pension requires the applicant to be at least 60.",
+        "suggestion": "Only applicants aged 60 and above are eligible on the day the application is reviewed."
+      },
+      {
+        "kind": "eq",
+        "name": "BPL household",
+        "document": "ration_card",
+        "field": "category",
+        "value": "BPL",
+        "message": "The ration card category is '{{value}}' — the pension is for Below Poverty Line (BPL) households.",
+        "suggestion": "Confirm the household's Below Poverty Line status before applying."
+      }
+    ],
+    "required_document_messages": {
+      "aadhaar": "Aadhaar card — to verify identity, age and address.",
+      "ration_card": "Ration card — to verify the BPL household category.",
+      "bank_passbook": "Bank passbook — the pension is credited to this account each month."
+    }
+  },
+  "workflow": {
+    "goal": "",
+    "initial_state": "document_collection",
+    "terminal_states": ["completed", "cancelled", "blocked"],
+    "states": [
+      {
+        "id": "document_collection",
+        "label": "Upload documents",
+        "type": "document_required",
+        "description": "Upload Aadhaar, ration card and bank passbook.",
+        "required_documents": ["aadhaar", "ration_card", "bank_passbook"],
+        "transitions": [
+          {"target": "document_validation", "condition": "documents_ready"}
+        ]
+      },
+      {
+        "id": "document_validation",
+        "label": "Check documents",
+        "type": "validation",
+        "description": "Comparing age, BPL category and account name with the scheme requirements.",
+        "transitions": [
+          {"target": "final_approval", "condition": "validation_passed"},
+          {"target": "review_warnings", "condition": "validation_needs_review"},
+          {"target": "blocked", "condition": "validation_blocked"}
+        ]
+      },
+      {
+        "id": "review_warnings",
+        "label": "Attention needed",
+        "type": "human_approval",
+        "description": "One or more documents need your attention before submission. Fix the document, or acknowledge and continue as the human in charge.",
+        "transitions": [
+          {"target": "final_approval", "condition": "approval_granted"},
+          {"target": "document_collection", "condition": "approval_rejected"}
+        ]
+      },
+      {
+        "id": "final_approval",
+        "label": "Final review",
+        "type": "human_approval",
+        "description": "Final human approval. Nothing is submitted without your explicit consent.",
+        "transitions": [
+          {"target": "submission", "condition": "approval_granted"},
+          {"target": "cancelled", "condition": "approval_rejected"}
+        ]
+      },
+      {
+        "id": "submission",
+        "label": "Submit application",
+        "type": "execution",
+        "description": "Submitting the assembled application (simulated in the demo).",
+        "transitions": [
+          {"target": "completed", "condition": "submission_complete"}
+        ]
+      },
+      {
+        "id": "blocked",
+        "label": "Submission blocked",
+        "type": "terminal",
+        "description": "A hard requirement failed. The application was NOT submitted.",
+        "transitions": []
+      },
+      {
+        "id": "cancelled",
+        "label": "Cancelled",
+        "type": "terminal",
+        "description": "The applicant chose not to submit.",
+        "transitions": []
+      },
+      {
+        "id": "completed",
+        "label": "Application ready",
+        "type": "terminal",
+        "description": "The reviewed application is ready to submit.",
+        "transitions": []
+      }
+    ]
+  }
+}
