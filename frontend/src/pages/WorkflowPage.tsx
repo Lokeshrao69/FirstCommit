@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AppHeader } from "@/components/Layout/AppHeader";
 import { Stepper } from "@/components/Layout/Stepper";
 import { ActivityDrawer } from "@/components/Activity/ActivityDrawer";
@@ -33,6 +33,13 @@ export function WorkflowPage() {
     inRun && detail?.current_state
       ? detail.states.find((s) => s.id === detail.current_state)?.label ?? null
       : null;
+
+  const approvalAt = useMemo(() => {
+    const approved = [...state.audit]
+      .reverse()
+      .find((e) => e.event_type === "human_approval" && e.details?.approved === true);
+    return approved?.timestamp || null;
+  }, [state.audit]);
 
   const width =
     phase === "plan" || phase === "documents" || phase === "review"
@@ -129,6 +136,9 @@ export function WorkflowPage() {
               status={state.doneStatus ?? "cancelled"}
               confirmationId={confirmationId}
               reason={state.detail?.validation?.issues[0]?.message}
+              detail={state.detail}
+              approvalAt={approvalAt}
+              onViewTrace={() => setActivityOpen(true)}
               onRestart={clear}
             />
           )}

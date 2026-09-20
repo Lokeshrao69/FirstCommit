@@ -97,9 +97,12 @@ export function SubmitStep({ detail, busy, onApprove, onCancel }: SubmitStepProp
               <span className="grid h-12 w-12 place-items-center rounded-container border border-primary/40 bg-primary/10 text-primary shadow-ember">
                 <KeyRound size={20} aria-hidden="true" />
               </span>
+              <p className="text-center font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+                AI planned · engine validated · you hold the key
+              </p>
               <p className="text-center text-small text-muted">
-                Approve this run. The engine issues a confirmation receipt and hands
-                control back to you.
+                Approve this run. Nothing was sent until now — the engine issues a
+                confirmation receipt and the run executes.
               </p>
               <Button
                 variant="primary"

@@ -50,12 +50,14 @@ export function AppHeader({
         </a>
 
         {apiMode === "mock" && import.meta.env.DEV && (
-          <span className="hidden rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wide text-accent md:inline-flex">
-            demo data
+          <span className="hidden shrink-0 items-center gap-1.5 font-mono text-[10px] lowercase tracking-wide text-faint md:inline-flex" title="Offline demo data — no live calls">
+            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-muted/50" />
+            demo mode
           </span>
         )}
         {apiMode === "live" && (
-          <span className="hidden rounded-full border border-success/30 bg-success/10 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wide text-success md:inline-flex">
+          <span className="hidden shrink-0 items-center gap-1.5 font-mono text-[10px] lowercase tracking-wide text-success md:inline-flex">
+            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-success" />
             live api
           </span>
         )}

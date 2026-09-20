@@ -116,8 +116,8 @@ export function StartStep({ busy, error, initialGoal, onCreate }: StartStepProps
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.18em] text-faint">
-              Demo
+            <span className="mr-1 font-mono text-[10px] lowercase tracking-[0.18em] text-faint">
+              demo
             </span>
             {GOAL_EXAMPLES.map((label) => (
               <Button key={label} variant="secondary" size="sm" onClick={() => setGoal(label)}>
@@ -176,32 +176,56 @@ export function StartStep({ busy, error, initialGoal, onCreate }: StartStepProps
           </p>
         </div>
 
-        {/* The engine arc — the mechanism at a glance */}
+        {/* The engine arc — the mechanism at a glance. While a workflow is being
+          forged, the lit stage tracks the real generation pipeline. */}
         <div
-          className="animate-rise mt-10 flex items-center gap-0 border-t border-border pt-5"
+          className="animate-rise mt-10 flex flex-col gap-2.5 border-t border-border pt-5"
           style={{ animationDelay: "300ms" }}
           aria-hidden="true"
         >
-          {ARC.map((step, i) => (
-            <div key={step.label} className="flex flex-1 items-center gap-0">
-              <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
-                <step.icon
-                  size={13}
-                  className={i === 3 ? "text-primary" : i === 4 ? "text-text" : "text-faint"}
-                />
-                <span
-                  className={`font-mono text-[10px] uppercase tracking-[0.14em] ${
-                    i === 3 ? "text-primary" : "text-faint"
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-              {i < ARC.length - 1 && (
-                <span aria-hidden="true" className="mx-2 h-px flex-1 bg-border" />
-              )}
-            </div>
-          ))}
+          <div className="flex items-center gap-0">
+            {ARC.map((step, i) => {
+              const lit = busy ? Math.min(stage, 3) === i : i === 3;
+              const connectorLit = busy ? i < Math.min(stage, 3) : false;
+              return (
+                <div key={step.label} className="flex flex-1 items-center gap-0">
+                  <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
+                    <span className="relative">
+                      <step.icon
+                        size={13}
+                        className={lit ? "text-primary" : i === 4 ? "text-text" : "text-faint"}
+                      />
+                      {lit && (
+                        <span
+                          className="absolute -right-1 -top-1 h-1 w-1 animate-pulse-ember rounded-full bg-primary"
+                        />
+                      )}
+                    </span>
+                    <span
+                      className={`font-mono text-[10px] uppercase tracking-[0.14em] ${
+                        lit ? "text-primary" : "text-faint"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < ARC.length - 1 && (
+                    <span
+                      className={`mx-2 h-px flex-1 transition-colors duration-300 ${
+                        connectorLit ? "bg-primary/60" : "bg-border"
+                      }`}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="h-px w-full bg-surface-3" aria-hidden="true">
+            <div
+              className="h-px bg-primary transition-[width] duration-200"
+              style={{ width: busy ? `${((Math.min(stage, 3) + 1) / 4) * 100}%` : "0%" }}
+            />
+          </div>
         </div>
       </div>
     </section>
